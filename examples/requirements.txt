@@ -1,0 +1,6 @@
+# Used for Patch Camelyon
+h5py
+gdown
+
+# Used for UCI Adult Income dataset
+scikit-learn

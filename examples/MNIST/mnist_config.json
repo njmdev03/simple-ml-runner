@@ -1,0 +1,21 @@
+{
+    "MODEL": "mnist_provider.py",
+    "TRAIN_DATASET": "mnist_provider.py",
+    "TEST_DATASET": "mnist_provider.py",
+    "BATCH_SIZE": 128,
+    "EPOCHS": 3,
+    "LEARNING_RATE": 0.0005,
+    "OPTIMIZER": "Adam",
+    "TRAIN_CRITERION": "NLLLoss",
+    "CHECK_RATE": 1,
+    "CHECK_MODEL_DIR": "mnist_checkpoints_json/",
+    "CHECK_MODEL_NAME": "mnist_json_epoch_$epoch",
+    "FINAL_OUTPUT_PATH": "models/mnist_final_json.pt",
+    "SAVE_TESTS": "results/mnist_results_json.xlsx",
+    "TEST_WHILE_TRAINING": true,
+    "TEST_CHECKPOINTS": true,
+    "DEVICES": [
+        "cuda",
+        "cpu"
+    ]
+}
