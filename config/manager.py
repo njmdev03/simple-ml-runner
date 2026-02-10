@@ -20,21 +20,61 @@ class ConfigManager:
             '.py': PYLoader()
         }
         self.defaults = {
-            'TRAIN': True,
-            'TEST': True,
+            # Meta
+            'SILENT': False,
+            'PROFILE': False,
+            'PROFILE_OUTPUT': None, # Default to None, handled in code
+            'PROFILE_DIR': '',
+            'PROFILE_NAME': '',
+
+            # Model & Device
+            'MODEL': None, # Required
             'DEVICES': ['cpu'],
+
+            # Data
+            'TRAIN_DATASET': None,
+            'TEST_DATASET': None,
+            'FINAL_OUTPUT_PATH': 'model_final.pt',
+            
+            # Training Flags
+            'TRAIN': True,
+            'TEST': True, # Default to True, but typically controlled by mode
+            
+            # Training Hyperparameters
             'BATCH_SIZE': 32,
             'LEARNING_RATE': 0.001,
             'EPOCHS': 10,
             'OPTIMIZER': 'Adam',
             'TRAIN_CRITERION': 'CrossEntropyLoss',
+            
+            # Checkpointing
             'CHECK_RATE': 1,
             'CHECK_MODEL_DIR': 'checkpoints/',
             'CHECK_MODEL_NAME': 'model_epoch_$epoch',
             'SAVE_METADATA': True,
             'RESUME': False,
-            'EVAL_CHECKS': False,
-            'SILENT': False
+            
+            # Early Halt
+            'EARLY_HALT_CONDITION': 'None',
+            'EARLY_HALT_THRESHOLD': 0.0,
+
+            # Testing & Evaluation
+            'TESTING_BATCH_SIZE': 32, # Will likely be overriden by BATCH_SIZE if not present, but good safely
+            'TESTING_CRITERION': [],
+            'TEST_ON_TRAINING_DATA': False,
+            'TEST_WHILE_TRAINING': False,
+            'TEST_CHECKPOINTS': False,
+            'SAVE_TESTS': None,
+
+            # Visualization
+            'VIS_TYPE': ['all'],
+            'VIS_OUTPUT_DIR': 'vis',
+            'VIS_FORMAT': 'png', 
+            'VIS_LAYOUT': 'individual',
+            'SHOW': False,
+            'NUM_SAMPLES': 10,
+            'VIS_DATASETS': ['all'],
+            'VIS_METRICS': ['all']
         }
 
     def load_config_tree(self, initial_paths: List[str]) -> Dict[str, Any]:
@@ -117,7 +157,7 @@ class ConfigManager:
         # Keys that use action='store_true'
         bool_flags = [
             'test_while_training', 'test_on_training_data',
-            'test_checkpoints', 'silent', 'profile'
+            'test_checkpoints', 'silent', 'profile', 'show'
         ]
 
         for k, v in arg_dict.items():

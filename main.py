@@ -1,10 +1,12 @@
 import argparse
 import os
+import matplotlib.pyplot as plt
 
 from config.manager import ConfigManager
 from engine.loader import load_from_pyscript
 from engine.compute_transforms import compute_stats
 from engine.job_runner import run_job
+from reporting.visualizer import Visualizer
 
 def parse_args():
     parser = argparse.ArgumentParser(description="ML Job Runner - Train and Test ML models via config.")
@@ -60,6 +62,21 @@ def parse_args():
     parser.add_argument("--profile-output", help="Path to save profiling results.")
 
     # Visualization options
+    parser.add_argument("--vis-type", action="append", dest="vis_type",
+                        choices=['all', 'loss', 'accuracy', 'combined', 'timing', 'duration', 'samples', 'model'],
+                        help="Which visualization(s) to generate. Can be specified multiple times.")
+    parser.add_argument("--vis-output-dir", help="Directory to save visualization images (default: vis/).")
+    parser.add_argument("--vis-format", help="Output format for visualizations (default: png).")
+    parser.add_argument("--vis-datasets", action="append", dest="vis_datasets",
+                        choices=['training', 'testing', 'all'],
+                        help="Filter by dataset: training, testing, or all. Can be specified multiple times.")
+    parser.add_argument("--vis-metrics", action="append", dest="vis_metrics",
+                        choices=['loss', 'accuracy', 'all'],
+                        help="Filter by metric: loss, accuracy, or all. Can be specified multiple times.")
+    parser.add_argument("--vis-layout", choices=['individual', 'grid'],
+                        help="Layout for showing plots: 'individual' windows or a single 'grid'. (default: individual)")
+    parser.add_argument("--show", action="store_true", help="Display plots interactively instead of saving.")
+    parser.add_argument("--num-samples", type=int, help="Number of samples for prediction preview (default: 10).")
 
     return parser.parse_args()
 
@@ -104,10 +121,139 @@ def main():
 
             run_job(config)
 
-        case 'vis' 'visualize':
+        case 'vis' | 'visualize':
             # Visualize the model, training process, accuracy, etc.
-            # TODO
-            pass
+            vis_types = config.get('VIS_TYPE')
+            if not isinstance(vis_types, list):
+                vis_types = [vis_types]
+            
+            output_dir = config.get('VIS_OUTPUT_DIR')
+            vis_format = config.get('VIS_FORMAT')
+            vis_layout = config.get('VIS_LAYOUT')
+            show_plots = config.get('SHOW')
+            num_samples = config.get('NUM_SAMPLES')
+            
+            visualizer = Visualizer(output_dir=output_dir, format=vis_format)
+            
+            # Parse filtering options
+            vis_datasets_raw = config.get('VIS_DATASETS')
+            if not isinstance(vis_datasets_raw, list):
+                vis_datasets_raw = [vis_datasets_raw]
+                
+            vis_metrics_raw = config.get('VIS_METRICS')
+            if not isinstance(vis_metrics_raw, list):
+                vis_metrics_raw = [vis_metrics_raw]
+            
+            # Convert to capitalized list format for visualizer
+            if 'all' in vis_datasets_raw:
+                datasets_filter = ['Training', 'Testing']
+            else:
+                datasets_filter = [d.capitalize() for d in vis_datasets_raw]
+            
+            if 'all' in vis_metrics_raw:
+                metrics_filter = ['loss', 'accuracy']
+            else:
+                metrics_filter = vis_metrics_raw
+            
+            results_df = None
+            profile_df = None
+            
+            # Load results CSV from config
+            save_tests_path = config.get('SAVE_TESTS')
+            if save_tests_path and os.path.exists(save_tests_path):
+                results_df = Visualizer.load_results_csv(save_tests_path)
+                if not config.get('SILENT'):
+                    print(f"Loaded results from {save_tests_path}")
+            
+            # Load profile CSV from config
+            profile_dir = config.get('PROFILE_DIR')
+            profile_name = config.get('PROFILE_NAME')
+            profile_path = os.path.join(profile_dir, profile_name) if profile_dir and profile_name else config.get('PROFILE_OUTPUT')
+            if profile_path and os.path.exists(profile_path):
+                profile_df = Visualizer.load_profile_csv(profile_path)
+                if not config.get('SILENT'):
+                    print(f"Loaded profile from {profile_path}")
+            
+            # Generate requested visualizations
+            for vis_type in vis_types:
+                match vis_type:
+                    case 'all':
+                        visualizer.generate_all(results_df, profile_df, show=show_plots,
+                                               datasets=datasets_filter, metrics=metrics_filter,
+                                               layout=vis_layout)
+                    case 'combined':
+                        if results_df is not None:
+                            visualizer.plot_loss_accuracy(results_df, show=show_plots,
+                                                         datasets=datasets_filter, metrics=metrics_filter)
+                    case 'loss':
+                        if results_df is not None:
+                            visualizer.plot_loss(results_df, show=show_plots, datasets=datasets_filter)
+                    case 'accuracy':
+                        if results_df is not None:
+                            visualizer.plot_accuracy(results_df, show=show_plots, datasets=datasets_filter)
+
+                    case 'duration':
+                        if profile_df is not None:
+                            visualizer.plot_duration_table(profile_df, show=show_plots)
+                    case 'timing':
+                        if profile_df is not None:
+                            visualizer.plot_epoch_timing(profile_df, show=show_plots)
+                    case 'samples':
+                        # Load model and dataset for sample predictions
+                        from engine.job_runner import get_device
+                        import torch
+                        
+                        device = get_device(config.get('DEVICES'))
+                        model_val = config.get('MODEL')
+                        
+                        if model_val:
+                            if isinstance(model_val, (str, os.PathLike)):
+                                model_obj = load_from_pyscript(model_val, ['MODEL', 'Net'])
+                            else:
+                                model_obj = model_val
+                            
+                            if isinstance(model_obj, type):
+                                model = model_obj().to(device)
+                            else:
+                                model = model_obj.to(device)
+                            
+                            # Load final model weights if available
+                            final_path = config.get('FINAL_OUTPUT_PATH')
+                            if final_path and os.path.exists(final_path):
+                                model.load_state_dict(torch.load(final_path, map_location=device))
+                            
+                            # Load test dataset
+                            test_dataset = config.get('TEST_DATASET')
+                            if test_dataset:
+                                if isinstance(test_dataset, (str, os.PathLike)):
+                                    test_dataset = load_from_pyscript(test_dataset, 'TEST_DATASET')
+                                
+                                visualizer.plot_sample_predictions(
+                                    model, test_dataset, device,
+                                    num_samples=num_samples, show=show_plots
+                                )
+                    case 'model':
+                        # Visualize model architecture
+                        model_val = config.get('MODEL')
+                        
+                        if model_val:
+                            if isinstance(model_val, (str, os.PathLike)):
+                                model_obj = load_from_pyscript(model_val, ['MODEL', 'Net'])
+                            else:
+                                model_obj = model_val
+                            
+                            if isinstance(model_obj, type):
+                                model = model_obj()
+                            else:
+                                model = model_obj
+                            
+                            visualizer.plot_model_architecture(model, show=show_plots)
+            
+            if show_plots:
+                print("Showing plots...")
+                plt.show()
+            else:
+                print(f"Visualizations saved to {output_dir}/")
         case 'stats':
             # Compute transform stats for the dataset found in the config
             # Make sure that no transforms are provided when running stats

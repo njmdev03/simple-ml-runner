@@ -80,7 +80,7 @@ def run_job(config):
 
     # Create Training Loader
     if config.get('TRAIN') and train_dataset:
-        train_loader = DataLoader(train_dataset, batch_size=config.get('BATCH_SIZE', 32), shuffle=True)
+        train_loader = DataLoader(train_dataset, batch_size=config.get('BATCH_SIZE'), shuffle=True)
 
     # Create Testing Loaders
     # Testing loader for test dataset
@@ -89,11 +89,11 @@ def run_job(config):
         evaluator = Evaluator(config, model, device, profiler=profiler)
 
         if test_dataset:
-            test_loader = DataLoader(test_dataset, batch_size=config.get('TESTING_BATCH_SIZE', config.get('BATCH_SIZE')))
+            test_loader = DataLoader(test_dataset, batch_size=config.get('TESTING_BATCH_SIZE') or config.get('BATCH_SIZE'))
 
         # Testing loader for training dataset
         if config.get('TEST_ON_TRAINING_DATA') and train_dataset:
-            train_eval_loader = DataLoader(train_dataset, batch_size=config.get('TESTING_BATCH_SIZE', config.get('BATCH_SIZE')))
+            train_eval_loader = DataLoader(train_dataset, batch_size=config.get('TESTING_BATCH_SIZE') or config.get('BATCH_SIZE'))
 
     if profiler:
         ds_dur = profiler.stop("dataset_loading")
@@ -139,7 +139,7 @@ def run_job(config):
         # evaluator = Evaluator(config, model, device)
 
         # if test_dataset:
-        #     test_loader = DataLoader(test_dataset, batch_size=config.get('TESTING_BATCH_SIZE', config.get('BATCH_SIZE', 32)))
+        #     test_loader = DataLoader(test_dataset, batch_size=config.get('TESTING_BATCH_SIZE') or config.get('BATCH_SIZE', 32))
 
         # if config.get('TEST_ON_TRAINING_DATA', False) and train_dataset:
         #     train_eval_loader = DataLoader(train_dataset, batch_size=config.get('BATCH_SIZE', 32))

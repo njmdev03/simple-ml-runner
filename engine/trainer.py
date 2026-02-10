@@ -144,9 +144,12 @@ class Trainer:
 
         # Final save
         final_path = self.config.get('FINAL_OUTPUT_PATH')
-        os.makedirs(os.path.dirname(final_path), exist_ok=True) if os.path.dirname(final_path) else None
-        torch.save(self.model.state_dict(), final_path)
-        print(f"Final model saved to {final_path}")
+        try:
+            os.makedirs(os.path.dirname(final_path), exist_ok=True) if os.path.dirname(final_path) else None
+            torch.save(self.model.state_dict(), final_path)
+            print(f"Final model saved to {final_path}")
+        except Exception as e:
+            print(f"Error saving final model to {final_path}: {e}")
 
     def load_checkpoint(self, path):
         print(f"Resuming from {path}")
