@@ -19,6 +19,7 @@ class ConfigManager:
             '.ini': INILoader(),
             '.py': PYLoader()
         }
+
         self.defaults = {
             # Meta
             'SILENT': False,
@@ -35,25 +36,25 @@ class ConfigManager:
             'TRAIN_DATASET': None,
             'TEST_DATASET': None,
             'FINAL_OUTPUT_PATH': 'model_final.pt',
-            
+
             # Training Flags
             'TRAIN': True,
             'TEST': True, # Default to True, but typically controlled by mode
-            
+
             # Training Hyperparameters
             'BATCH_SIZE': 32,
             'LEARNING_RATE': 0.001,
             'EPOCHS': 1,
             'OPTIMIZER': 'Adam',
             'TRAIN_CRITERION': 'CrossEntropyLoss',
-            
+
             # Checkpointing
             'CHECK_RATE': 1,
             'CHECK_MODEL_DIR': 'checkpoints/',
             'CHECK_MODEL_NAME': 'model_epoch_$epoch',
             'SAVE_METADATA': True,
             'RESUME': False,
-            
+
             # Early Halt
             'EARLY_HALT_CONDITION': 'None',
             'EARLY_HALT_THRESHOLD': 0.0,
@@ -69,7 +70,7 @@ class ConfigManager:
             # Visualization
             'VIS_TYPE': ['all'],
             'VIS_OUTPUT_DIR': 'vis',
-            'VIS_FORMAT': 'png', 
+            'VIS_FORMAT': 'png',
             'VIS_LAYOUT': 'individual',
             'SHOW': False,
             'NUM_SAMPLES': 10,
@@ -163,7 +164,7 @@ class ConfigManager:
         for k, v in arg_dict.items():
             if v is None:
                 continue
-            if k in ['train', 'dont_train', 'test', 'dont_test', 'config']:
+            if k in ['train', 'dont_train', 'test', 'dont_test', 'dont_save_metadata', 'config']:
                 continue
 
             # If it's a known boolean flag and it's False, it means it wasn't passed.

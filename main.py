@@ -52,7 +52,7 @@ def parse_args():
 
     # Checkpoint Options
     parser.add_argument("--checkpoint-frequency", type=int, dest="check_rate", help="Frequency in epochs to save checkpoints.")
-    parser.add_argument("--save-metadata", action="store_true", help="Save JSON metadata files alongside checkpoints.")
+    parser.add_argument("--dont-save-metadata", action="store_true", help="Save JSON metadata files alongside checkpoints.")
     parser.add_argument("--checkpoint-dir", dest="check_model_dir", help="Directory to save checkpoints and metadata to.")
     parser.add_argument("--checkpoint-name", dest="check_model_name", help="Template string for checkpoint names.")
     parser.add_argument("--resume", help="Resume from checkpoint (bool or path).")
@@ -97,6 +97,11 @@ def main():
     config_paths = args.config if args.config else []
     config = load_config(config_paths, args=args)
 
+    print()
+    print(f"CONFIG DUMP:")
+    print(f"{config}")
+    print()
+
     match args.operation:
         case 'batch':
             # Iterate over each job config file and run it
@@ -126,45 +131,45 @@ def main():
             vis_types = config.get('VIS_TYPE')
             if not isinstance(vis_types, list):
                 vis_types = [vis_types]
-            
+
             output_dir = config.get('VIS_OUTPUT_DIR')
             vis_format = config.get('VIS_FORMAT')
             vis_layout = config.get('VIS_LAYOUT')
             show_plots = config.get('SHOW')
             num_samples = config.get('NUM_SAMPLES')
-            
+
             visualizer = Visualizer(output_dir=output_dir, format=vis_format)
-            
+
             # Parse filtering options
             vis_datasets_raw = config.get('VIS_DATASETS')
             if not isinstance(vis_datasets_raw, list):
                 vis_datasets_raw = [vis_datasets_raw]
-                
+
             vis_metrics_raw = config.get('VIS_METRICS')
             if not isinstance(vis_metrics_raw, list):
                 vis_metrics_raw = [vis_metrics_raw]
-            
+
             # Convert to capitalized list format for visualizer
             if 'all' in vis_datasets_raw:
                 datasets_filter = ['Training', 'Testing']
             else:
                 datasets_filter = [d.capitalize() for d in vis_datasets_raw]
-            
+
             if 'all' in vis_metrics_raw:
                 metrics_filter = ['loss', 'accuracy']
             else:
                 metrics_filter = vis_metrics_raw
-            
+
             results_df = None
             profile_df = None
-            
+
             # Load results CSV from config
             save_tests_path = config.get('SAVE_TESTS')
             if save_tests_path and os.path.exists(save_tests_path):
                 results_df = Visualizer.load_results_csv(save_tests_path)
                 if not config.get('SILENT'):
                     print(f"Loaded results from {save_tests_path}")
-            
+
             # Load profile CSV from config
             profile_dir = config.get('PROFILE_DIR')
             profile_name = config.get('PROFILE_NAME')
@@ -173,7 +178,7 @@ def main():
                 profile_df = Visualizer.load_profile_csv(profile_path)
                 if not config.get('SILENT'):
                     print(f"Loaded profile from {profile_path}")
-            
+
             # Generate requested visualizations
             for vis_type in vis_types:
                 match vis_type:
@@ -202,32 +207,32 @@ def main():
                         # Load model and dataset for sample predictions
                         from engine.job_runner import get_device
                         import torch
-                        
+
                         device = get_device(config.get('DEVICES'))
                         model_val = config.get('MODEL')
-                        
+
                         if model_val:
                             if isinstance(model_val, (str, os.PathLike)):
                                 model_obj = load_from_pyscript(model_val, ['MODEL', 'Net'])
                             else:
                                 model_obj = model_val
-                            
+
                             if isinstance(model_obj, type):
                                 model = model_obj().to(device)
                             else:
                                 model = model_obj.to(device)
-                            
+
                             # Load final model weights if available
                             final_path = config.get('FINAL_OUTPUT_PATH')
                             if final_path and os.path.exists(final_path):
                                 model.load_state_dict(torch.load(final_path, map_location=device))
-                            
+
                             # Load test dataset
                             test_dataset = config.get('TEST_DATASET')
                             if test_dataset:
                                 if isinstance(test_dataset, (str, os.PathLike)):
                                     test_dataset = load_from_pyscript(test_dataset, 'TEST_DATASET')
-                                
+
                                 visualizer.plot_sample_predictions(
                                     model, test_dataset, device,
                                     num_samples=num_samples, show=show_plots
@@ -235,20 +240,20 @@ def main():
                     case 'model':
                         # Visualize model architecture
                         model_val = config.get('MODEL')
-                        
+
                         if model_val:
                             if isinstance(model_val, (str, os.PathLike)):
                                 model_obj = load_from_pyscript(model_val, ['MODEL', 'Net'])
                             else:
                                 model_obj = model_val
-                            
+
                             if isinstance(model_obj, type):
                                 model = model_obj()
                             else:
                                 model = model_obj
-                            
+
                             visualizer.plot_model_architecture(model, show=show_plots)
-            
+
             if show_plots:
                 print("Showing plots...")
                 plt.show()

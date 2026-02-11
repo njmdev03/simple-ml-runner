@@ -34,7 +34,7 @@ The following configuration keys can be used in your JSON, YAML, TOML, or Python
 | `CHECK_RATE` | `int` | `1` | `--checkpoint-frequency` | Save checkpoint every N epochs. |
 | `CHECK_MODEL_DIR` | `str` | `'checkpoints/'` | `--checkpoint-dir` | Directory to save checkpoints. |
 | `CHECK_MODEL_NAME` | `str` | `'model_epoch_$epoch'` | `--checkpoint-name` | Template for checkpoint filenames. |
-| `SAVE_METADATA` | `bool` | `True` | `--save-metadata` | Save JSON metadata with checkpoints. |
+| `SAVE_METADATA` | `bool` | `True` | `--dont-save-metadata` | Save JSON metadata with checkpoints. |
 | `RESUME` | `bool/str` | `False` | `--resume` | Resume training from checkpoint (path or bool). |
 | **Early Halting** | | | | |
 | `EARLY_HALT_CONDITION`| `str` | `'None'` | `--early-halt-condition`| Condition to stop early ('Loss' or 'Accuracy'). |
