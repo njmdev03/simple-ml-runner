@@ -43,7 +43,7 @@ class ConfigManager:
             # Training Hyperparameters
             'BATCH_SIZE': 32,
             'LEARNING_RATE': 0.001,
-            'EPOCHS': 10,
+            'EPOCHS': 1,
             'OPTIMIZER': 'Adam',
             'TRAIN_CRITERION': 'CrossEntropyLoss',
             

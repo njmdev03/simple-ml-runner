@@ -1,8 +1,6 @@
 import torch.nn as nn
-import torch.nn.functional as F
 
-
-class SimpleCNN(nn.Module):
+class CNN(nn.Module):
     def __init__(
         self,
         input_channels: int,
