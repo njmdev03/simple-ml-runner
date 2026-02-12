@@ -1,0 +1,12 @@
+from examples.shared.MLP import MLP
+
+CONFIG = "cifar100_base.py"
+
+# CIFAR-100 images are 32x32x3 = 3072 input features
+# 100 output classes
+MODEL = MLP(3072, 100)
+
+FINAL_OUTPUT_PATH = "models/cifar100_mlp_final.pt"
+CHECK_MODEL_DIR = "checkpoints/cifar100-mlp/"
+SAVE_TESTS = "results/cifar100_mlp_results.csv"
+PROFILE_NAME = "cifar100_mlp_profile.csv"

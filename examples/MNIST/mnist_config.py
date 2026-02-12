@@ -9,7 +9,7 @@ DEVICES = ["cuda", "cpu"]
 
 _transform = transforms.Compose([
     transforms.ToTensor(),
-    # transforms.Normalize((0.1307,), (0.3081,))
+    transforms.Normalize((0.1307,), (0.3081,))
 ])
 
 TRAIN_DATASET = datasets.MNIST(
