@@ -89,6 +89,61 @@ def load_config(config_paths, args=None):
 
     return config
 
+def model_vis(config, visualizer):
+    # Visualize model architecture
+    model_val = config.get('MODEL')
+    show_plots = config.get('SHOW')
+
+    if model_val:
+        if isinstance(model_val, (str, os.PathLike)):
+            model_obj = load_from_pyscript(model_val, ['MODEL', 'Net'])
+        else:
+            model_obj = model_val
+
+        if isinstance(model_obj, type):
+            model = model_obj()
+        else:
+            model = model_obj
+
+        visualizer.plot_model_architecture(model, show=show_plots)
+
+def vis_samples(config, visualizer):
+    # Load model and dataset for sample predictions
+    from engine.job_runner import get_device
+    import torch
+
+    device = get_device(config.get('DEVICES'))
+    model_val = config.get('MODEL')
+    show_plots = config.get('SHOW')
+    num_samples = config.get('NUM_SAMPLES')
+
+    if model_val:
+        if isinstance(model_val, (str, os.PathLike)):
+            model_obj = load_from_pyscript(model_val, ['MODEL', 'Net'])
+        else:
+            model_obj = model_val
+
+        if isinstance(model_obj, type):
+            model = model_obj().to(device)
+        else:
+            model = model_obj.to(device)
+
+        # Load final model weights if available
+        final_path = config.get('FINAL_OUTPUT_PATH')
+        if final_path and os.path.exists(final_path):
+            model.load_state_dict(torch.load(final_path, map_location=device))
+
+        # Load test dataset
+        test_dataset = config.get('TEST_DATASET')
+        if test_dataset:
+            if isinstance(test_dataset, (str, os.PathLike)):
+                test_dataset = load_from_pyscript(test_dataset, 'TEST_DATASET')
+
+            visualizer.plot_sample_predictions(
+                model, test_dataset, device,
+                num_samples=num_samples, show=show_plots
+            )
+
 def main():
     # Parse the passed arguments
     args = parse_args()
@@ -97,10 +152,10 @@ def main():
     config_paths = args.config if args.config else []
     config = load_config(config_paths, args=args)
 
-    print()
-    print(f"CONFIG DUMP:")
-    print(f"{config}")
-    print()
+    # print()
+    # print(f"CONFIG DUMP:")
+    # print(f"{config}")
+    # print()
 
     match args.operation:
         case 'batch':
@@ -136,7 +191,6 @@ def main():
             vis_format = config.get('VIS_FORMAT')
             vis_layout = config.get('VIS_LAYOUT')
             show_plots = config.get('SHOW')
-            num_samples = config.get('NUM_SAMPLES')
 
             visualizer = Visualizer(output_dir=output_dir, format=vis_format)
 
@@ -186,6 +240,8 @@ def main():
                         visualizer.generate_all(results_df, profile_df, show=show_plots,
                                                datasets=datasets_filter, metrics=metrics_filter,
                                                layout=vis_layout)
+                        vis_samples(config, visualizer)
+                        model_vis(config, visualizer)
                     case 'combined':
                         if results_df is not None:
                             visualizer.plot_loss_accuracy(results_df, show=show_plots,
@@ -196,7 +252,6 @@ def main():
                     case 'accuracy':
                         if results_df is not None:
                             visualizer.plot_accuracy(results_df, show=show_plots, datasets=datasets_filter)
-
                     case 'duration':
                         if profile_df is not None:
                             visualizer.plot_duration_table(profile_df, show=show_plots)
@@ -204,55 +259,9 @@ def main():
                         if profile_df is not None:
                             visualizer.plot_epoch_timing(profile_df, show=show_plots)
                     case 'samples':
-                        # Load model and dataset for sample predictions
-                        from engine.job_runner import get_device
-                        import torch
-
-                        device = get_device(config.get('DEVICES'))
-                        model_val = config.get('MODEL')
-
-                        if model_val:
-                            if isinstance(model_val, (str, os.PathLike)):
-                                model_obj = load_from_pyscript(model_val, ['MODEL', 'Net'])
-                            else:
-                                model_obj = model_val
-
-                            if isinstance(model_obj, type):
-                                model = model_obj().to(device)
-                            else:
-                                model = model_obj.to(device)
-
-                            # Load final model weights if available
-                            final_path = config.get('FINAL_OUTPUT_PATH')
-                            if final_path and os.path.exists(final_path):
-                                model.load_state_dict(torch.load(final_path, map_location=device))
-
-                            # Load test dataset
-                            test_dataset = config.get('TEST_DATASET')
-                            if test_dataset:
-                                if isinstance(test_dataset, (str, os.PathLike)):
-                                    test_dataset = load_from_pyscript(test_dataset, 'TEST_DATASET')
-
-                                visualizer.plot_sample_predictions(
-                                    model, test_dataset, device,
-                                    num_samples=num_samples, show=show_plots
-                                )
+                        vis_samples(config, visualizer)
                     case 'model':
-                        # Visualize model architecture
-                        model_val = config.get('MODEL')
-
-                        if model_val:
-                            if isinstance(model_val, (str, os.PathLike)):
-                                model_obj = load_from_pyscript(model_val, ['MODEL', 'Net'])
-                            else:
-                                model_obj = model_val
-
-                            if isinstance(model_obj, type):
-                                model = model_obj()
-                            else:
-                                model = model_obj
-
-                            visualizer.plot_model_architecture(model, show=show_plots)
+                        model_vis(config, visualizer)
 
             if show_plots:
                 print("Showing plots...")

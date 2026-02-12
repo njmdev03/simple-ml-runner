@@ -14,6 +14,9 @@ class Evaluator:
     def _get_criteria(self):
         codes = self.config.get('TESTING_CRITERION')
 
+        if not codes:
+            codes = self.config.get('TRAIN_CRITERION')
+
         if not isinstance(codes, list):
             codes = [codes]
 

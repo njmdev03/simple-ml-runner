@@ -43,8 +43,8 @@ def run_job(config):
             print(f"Loading model from {model_val}...")
         model_obj = load_from_pyscript(model_val, ["MODEL", "Net"])
     else:
-        if not config.get('SILENT'):
-            print(f"Using direct model object: {model_val}")
+        # if not config.get('SILENT'):
+        #     print(f"Using direct model object: {model_val}")
         model_obj = model_val
 
     if isinstance(model_obj, type):
@@ -189,7 +189,9 @@ def run_job(config):
             print()
 
         # Resolve Profile Output Path
-        profile_path = config.get('PROFILE_OUTPUT')
+        profile_dir = config.get('PROFILE_DIR')
+        profile_name = config.get('PROFILE_NAME')
+        profile_path = os.path.join(profile_dir, profile_name) if profile_dir and profile_name else config.get('PROFILE_OUTPUT')
 
         if profile_path:
             Exporter.export([profiler.get_report()], profile_path)
