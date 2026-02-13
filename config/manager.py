@@ -24,17 +24,14 @@ class ConfigManager:
             # Meta
             'SILENT': False,
             'PROFILE': False,
-            'PROFILE_OUTPUT': None, # Default to None, handled in code
-            'PROFILE_DIR': '',
-            'PROFILE_NAME': '',
+            # 'PROFILE_OUTPUT': None, # Default to None, handled in code
 
-            # Model & Device
-            'MODEL': None, # Required
+            # Device
             'DEVICES': ['cpu'],
 
             # Data
-            'TRAIN_DATASET': None,
-            'TEST_DATASET': None,
+            # 'TRAIN_DATASET': None,
+            # 'TEST_DATASET': None,
             'FINAL_OUTPUT_PATH': 'model_final.pt',
 
             # Training Flags
@@ -49,7 +46,7 @@ class ConfigManager:
             'TRAIN_CRITERION': 'CrossEntropyLoss',
 
             # Checkpointing
-            'CHECK_RATE': 1,
+            'CHECK_RATE': 0,
             'CHECK_MODEL_DIR': 'checkpoints/',
             'CHECK_MODEL_NAME': 'model_epoch_$epoch',
             'SAVE_METADATA': True,
@@ -60,12 +57,12 @@ class ConfigManager:
             'EARLY_HALT_THRESHOLD': 0.0,
 
             # Testing & Evaluation
-            'TESTING_BATCH_SIZE': 32, # Will likely be overriden by BATCH_SIZE if not present, but good safely
-            'TESTING_CRITERION': [],
+            # 'TESTING_BATCH_SIZE': 32, # Will likely be overriden by BATCH_SIZE if not present, but good safely
+            # 'TESTING_CRITERION': [],
             'TEST_ON_TRAINING_DATA': False,
             'TEST_WHILE_TRAINING': False,
             'TEST_CHECKPOINTS': False,
-            'SAVE_TESTS': None,
+            # 'SAVE_TESTS': None,
 
             # Visualization
             'VIS_TYPE': ['all'],
@@ -73,12 +70,14 @@ class ConfigManager:
             'VIS_FORMAT': 'png',
             'VIS_LAYOUT': 'individual',
             'SHOW': False,
-            'NUM_SAMPLES': 10,
-            'VIS_DATASETS': ['all'],
+            'NUM_SAMPLES': 0,
+            'VIS_DATASETS': ['testing'],
             'VIS_METRICS': ['all']
         }
 
     def load_config_tree(self, initial_paths: List[str]) -> Dict[str, Any]:
+        print("Loading configs...")
+
         # loaded_configs = []
         # stack = [(Path(p).resolve(), 0) for p in reversed(initial_paths)]
         visited = set()
@@ -93,10 +92,15 @@ class ConfigManager:
                 return
             visited.add(resolved_path)
 
+            print(f"Processing config {resolved_path}")
+
             ext = resolved_path.suffix.lower()
             loader = self.loaders.get(ext)
             if not loader:
+                print(f"No valid loader found for {resolved_path}")
                 return
+
+            print(f"Using loader {loader}")
 
             content = loader.load(str(resolved_path))
 
@@ -104,10 +108,13 @@ class ConfigManager:
             nested = content.get('CONFIG', [])
             if isinstance(nested, str):
                 nested = [nested]
+                print(f"Found dependent configs {nested}")
 
             for n_path in nested:
                 n_full_path = resolved_path.parent / n_path
                 traverse(n_full_path)
+
+            print(f"Adding content of {resolved_path} to tree")
 
             tree_order.append(content)
 
@@ -115,6 +122,7 @@ class ConfigManager:
             traverse(Path(p))
 
         # Merge tree_order (Bottom-up)
+        print(f"\n Processing config tree {tree_order}")
         final_config = self.defaults.copy()
         for cfg in tree_order:
             final_config.update(cfg)

@@ -8,6 +8,11 @@ CHECK_MODEL_DIR = "checkpoints/mnist-cnn/"
 
 SAVE_TESTS = "results/mnist_cnn_results.csv"
 
-PROFILE_NAME = "mnist_cnn_profile.csv"
+PROFILE_OUTPUT = "profiles/mnist_cnn_profile.csv"
 
-MODEL = CNN(28 * 28 ,10)
+VIS_OUTPUT_DIR = "vis/cnn/"
+
+MODEL = CNN(1 ,10)
+
+EPOCHS = 10
+BATCH_SIZE = 8000

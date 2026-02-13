@@ -14,15 +14,3 @@ TRAIN_DATASET = datasets.MNIST(
 TEST_DATASET = datasets.MNIST(
     './data', train=False, download=True, transform=_transform
 )
-
-CHECK_MODEL_DIR = "checkpoints/mnist/"
-CHECK_MODEL_NAME = "mnist_epoch_$epoch"
-
-FINAL_OUTPUT_PATH = "models/mnist_final.pt"
-
-SAVE_TESTS = "results/mnist_results.csv"
-
-PROFILE_NAME = "mnist_profile.csv"
-
-BATCH_SIZE = 8000
-EPOCHS = 10

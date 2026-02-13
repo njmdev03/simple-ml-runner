@@ -20,15 +20,3 @@ TRAIN_DATASET = datasets.PCAM(
 TEST_DATASET = datasets.PCAM(
     './data', split='test', download=True, transform=_transform
 )
-
-CHECK_MODEL_DIR = "checkpoints/pcam/"
-CHECK_MODEL_NAME = "pcam_epoch_$epoch"
-
-FINAL_OUTPUT_PATH = "models/pcam_final.pt"
-
-SAVE_TESTS = "results/pcam_results.csv"
-
-PROFILE_NAME = "pcam_profile.csv"
-
-BATCH_SIZE = 128
-EPOCHS = 20

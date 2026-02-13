@@ -9,4 +9,8 @@ MODEL = MLP(3072, 100)
 FINAL_OUTPUT_PATH = "models/cifar100_mlp_final.pt"
 CHECK_MODEL_DIR = "checkpoints/cifar100-mlp/"
 SAVE_TESTS = "results/cifar100_mlp_results.csv"
-PROFILE_NAME = "cifar100_mlp_profile.csv"
+PROFILE_OUTPUT = "profiles/cifar100_mlp_profile.csv"
+VIS_OUTPUT_DIR = "vis/mlp/"
+
+BATCH_SIZE = 8000
+EPOCHS = 100

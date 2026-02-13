@@ -36,6 +36,7 @@ def run_job(config):
     model_val = config.get('MODEL')
     if not model_val:
         print(f"Error: MODEL not specified in config. Available keys: {list(config.keys())}")
+        print(f"{config.get("MODEL")}")
         return
 
     if isinstance(model_val, (str, os.PathLike)):
@@ -189,9 +190,7 @@ def run_job(config):
             print()
 
         # Resolve Profile Output Path
-        profile_dir = config.get('PROFILE_DIR')
-        profile_name = config.get('PROFILE_NAME')
-        profile_path = os.path.join(profile_dir, profile_name) if profile_dir and profile_name else config.get('PROFILE_OUTPUT')
+        profile_path = config.get('PROFILE_OUTPUT')
 
         if profile_path:
             Exporter.export([profiler.get_report()], profile_path)

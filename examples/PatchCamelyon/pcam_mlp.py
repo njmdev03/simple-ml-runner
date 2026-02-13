@@ -9,4 +9,8 @@ MODEL = MLP(27648, 2)
 FINAL_OUTPUT_PATH = "models/pcam_mlp_final.pt"
 CHECK_MODEL_DIR = "checkpoints/pcam-mlp/"
 SAVE_TESTS = "results/pcam_mlp_results.csv"
-PROFILE_NAME = "pcam_mlp_profile.csv"
+PROFILE_OUTPUT = "profiles/pcam_mlp_profile.csv"
+VIS_OUTPUT_DIR = "vis/mlp/"
+
+BATCH_SIZE = 16000
+EPOCHS = 10

@@ -12,10 +12,15 @@ OPTIMIZER = optim.Adam
 TRAIN_CRITERION = nn.CrossEntropyLoss()
 
 CHECK_RATE = 1
-SAVE_METADATA = True
 
 TEST_CHECKPOINTS = True
 TEST_ON_TRAINING_DATA = True
 
 PROFILE = True
-PROFILE_DIR = "profiles/"
+
+# Select visualizations
+VIS_TYPE = ["all"]
+VIS_METRICS = ["all"]
+VIS_DATASETS = ["all"]
+NUM_SAMPLES = 10
+SHOW = False

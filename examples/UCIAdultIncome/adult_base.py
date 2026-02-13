@@ -25,14 +25,5 @@ TEST_DATASET = AdultDataset(
     target_encoder=TRAIN_DATASET.target_encoder
 )
 
-CHECK_MODEL_DIR = "checkpoints/adult/"
-CHECK_MODEL_NAME = "adult_epoch_$epoch"
-
-FINAL_OUTPUT_PATH = "models/adult_final.pt"
-
-SAVE_TESTS = "results/adult_results.csv"
-
-PROFILE_NAME = "adult_profile.csv"
-
-BATCH_SIZE = 512
-EPOCHS = 30
+BATCH_SIZE = 4000
+EPOCHS = 10

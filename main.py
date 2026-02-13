@@ -225,9 +225,7 @@ def main():
                     print(f"Loaded results from {save_tests_path}")
 
             # Load profile CSV from config
-            profile_dir = config.get('PROFILE_DIR')
-            profile_name = config.get('PROFILE_NAME')
-            profile_path = os.path.join(profile_dir, profile_name) if profile_dir and profile_name else config.get('PROFILE_OUTPUT')
+            profile_path = config.get('PROFILE_OUTPUT')
             if profile_path and os.path.exists(profile_path):
                 profile_df = Visualizer.load_profile_csv(profile_path)
                 if not config.get('SILENT'):
@@ -236,6 +234,7 @@ def main():
             # Generate requested visualizations
             for vis_type in vis_types:
                 match vis_type:
+                    # TODO: Document correctly
                     case 'all':
                         visualizer.generate_all(results_df, profile_df, show=show_plots,
                                                datasets=datasets_filter, metrics=metrics_filter,

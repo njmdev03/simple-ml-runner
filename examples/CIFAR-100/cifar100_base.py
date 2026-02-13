@@ -19,15 +19,3 @@ TRAIN_DATASET = datasets.CIFAR100(
 TEST_DATASET = datasets.CIFAR100(
     './data', train=False, download=True, transform=_transform
 )
-
-CHECK_MODEL_DIR = "checkpoints/cifar100/"
-CHECK_MODEL_NAME = "cifar100_epoch_$epoch"
-
-FINAL_OUTPUT_PATH = "models/cifar100_final.pt"
-
-SAVE_TESTS = "results/cifar100_results.csv"
-
-PROFILE_NAME = "cifar100_profile.csv"
-
-BATCH_SIZE = 256
-EPOCHS = 100

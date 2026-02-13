@@ -166,8 +166,8 @@ The following configuration keys can be used in your JSON, YAML, TOML, or Python
 | `SILENT` | `bool` | `False` | `--silent` | Suppress console output. |
 | `PROFILE` | `bool` | `False` | `--profile` | Enable performance profiling. |
 | `PROFILE_OUTPUT` | `str` | `None` | `--profile-output` | Path to save profiling report. |
-| `PROFILE_DIR` | `str` | `''` | | Directory to search for profiling logs (vis only). |
-| `PROFILE_NAME` | `str` | `''` | | Name of profiling log file (vis only). |
+<!-- | `PROFILE_DIR` | `str` | `''` | | Directory to search for profiling logs (vis only). |
+| `PROFILE_NAME` | `str` | `''` | | Name of profiling log file (vis only). | -->
 | **Model & Device** | | | | |
 | `MODEL` | `str` | `None` | `--model` | Path to python file defining the model (must contain `MODEL` or `Net` object). |
 | `DEVICES` | `list` | `['cpu']` | `--devices` | List of devices to use (e.g., `['cuda', 'cpu']`). |
