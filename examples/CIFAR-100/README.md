@@ -1,15 +1,49 @@
 # CIFAR-100 Image Classification
 
-The CIFAR-100 dataset provides a more complex example than MNIST, with many more classes and more complex input data. The examples here use a larger MLP and more complex CNN than the other examples to account for this.
+The CIFAR-100 dataset consists of 60,000 32x32 color images in 100 classes. There are 50,000 training images and 10,000 test images.
 
-## MLP
+## Configurations
 
-The CIFAR-100 dataset is verey complicated, so simple MLPs tend not to perform terribly well. Instead it is much better to use other methods such as CNNs or Vision Transformers. The MLP example is mostly provided to show how even with a relatively complex network, only a low accuracy of <30% is achievable using this method.
+All configurations inherit from `cifar100_base.py`, which includes data augmentation (RandomHorizontalFlip, RandomCrop) and normalization.
 
-## CNN
+### 1. Multi-Layer Perceptron (MLP)
+- **Config:** `cifar100_mlp.py`
+- **Details:** Uses a larger MLP (3072 input features) to handle the complexity, but accuracy remains low (<30%) due to the dataset's high dimensionality and lack of spatial awareness in MLPs.
+- **Command:**
+  ```bash
+  cd examples/CIFAR-100
+  python ../../main.py job --config cifar100_mlp.py
+  ```
 
-CNNs perform much better on the CIFAR-100 dataset. With this method a much better accuracy over 90% is relatively easily achievable even with a simple optimizer. It is likely that training over more epochs with a learning rate decay would allow for much higher accuracy.
+### 2. Convolutional Neural Network (CNN)
+- **Config:** `cifar100_cnn.py`
+- **Details:** Significantly outperforms the MLP by leveraging convolutional layers. Achieves much higher accuracy by identifying local patterns in the color images.
+- **Command:**
+  ```bash
+  cd examples/CIFAR-100
+  python ../../main.py job --config cifar100_cnn.py
+  ```
 
-## Vision Transformer
+### 3. Vision Transformer (ViT)
+- **Config:** `cifar100_vit.py`
+- **Details:** A more complex ViT model with 128 embedding dimensions and 6 layers, demonstrating how transformers can scale to more complex image tasks.
+- **Command:**
+  ```bash
+  cd examples/CIFAR-100
+  python ../../main.py job --config cifar100_vit.py
+  ```
 
+## Visualizations
 
+Visualize the training performance and model architecture:
+```bash
+python ../../main.py vis --config cifar100_cnn.py
+```
+
+### Metrics & Predictions
+| Training Progress | Sample Predictions |
+| :---: | :---: |
+| ![CIFAR-100 Loss/Accuracy](../../images/cifar100_combined.png) | ![CIFAR-100 Predictions](../../images/cifar100_samples.png) |
+
+### Model Architecture
+![CIFAR-100 Architecture](../../images/cifar100_model.png)

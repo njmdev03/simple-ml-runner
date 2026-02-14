@@ -110,36 +110,31 @@ And a collection of chart images will be output to the `vis/mlp/` directory
 
 ## 📚 Running Examples
 
-Several example configurations are included to help you get started with different types of data and models. You can view more about each of these individual models in the `examples/` directory.
+Several example configurations are included to help you get started with different types of data and models. For detailed analysis, performance results, and run instructions for each dataset, see the [Examples Directory](./examples/README.md).
 
-### 1. MNIST (Handwritten Digits)
-
+### 1. [MNIST (Handwritten Digits)](./examples/MNIST/README.md)
 Type: Image Classification (Grayscale)
+- **MLP (Simple):** `examples/MNIST/mnist_mlp.py`
+- **CNN (Advanced):** `examples/MNIST/mnist_cnn.py`
+- **ViT (Modern):** `examples/MNIST/mnist_vit.py`
 
-- **MLP (Simple):** `examples/MNIST/mnist_shared_mlp.py`
-- **CNN (Advanced):** `examples/MNIST/mnist_shared_cnn.py`
-
-### 2. CIFAR-100 (Object Recognition)
-
+### 2. [CIFAR-100 (Object Recognition)](./examples/CIFAR-100/README.md)
 Type: Image Classification (Color, 100 classes)
+- **MLP:** `examples/CIFAR-100/cifar100_mlp.py`
+- **CNN:** `examples/CIFAR-100/cifar100_cnn.py`
+- **ViT:** `examples/CIFAR-100/cifar100_vit.py`
 
-- **MLP:** `examples/CIFAR-100/cifar100_shared_mlp.py`
-- **CNN:** `examples/CIFAR-100/cifar100_shared_cnn.py`
-
-### 3. PatchCamelyon (Medical Imaging)
-
+### 3. [PatchCamelyon (Medical Imaging)](./examples/PatchCamelyon/README.md)
 Type: Binary Classification (Tumor detection)
+- **MLP:** `examples/PatchCamelyon/pcam_mlp.py`
+- **CNN:** `examples/PatchCamelyon/pcam_cnn.py`
+- **ViT:** `examples/PatchCamelyon/pcam_vit.py`
 
-- **MLP:** `examples/PatchCamelyon/pcam_shared_mlp.py`
-- **CNN:** `examples/PatchCamelyon/pcam_shared_cnn.py`
-
-### 4. UCI Adult Income (Census Data)
-
+### 4. [UCI Adult Income (Census Data)](./examples/UCIAdultIncome/README.md)
 Type: Tabular Prediction (>50k income)
-
-- **MLP:** `examples/UCIAdultIncome/adult_shared_mlp.py`
-- **CNN:** `examples/UCIAdultIncome/adult_shared_cnn.py`
-  - Note: This demonstrates how to reshape tabular data to fit into a CNN architecture.
+- **MLP:** `examples/UCIAdultIncome/adult_mlp.py`
+- **CNN:** `examples/UCIAdultIncome/adult_cnn.py`
+  - Note: Demonstrates reshaping tabular data for CNNs.
 
 ---
 

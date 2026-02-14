@@ -1,13 +1,47 @@
-# UCI Adult Income
+# UCI Adult Income Prediction
 
-The UCI Adult Income dataset is based on U.S. Census data with the aim being to classify individuals into income brackets of >50K/year or <50K/year.
+The UCI Adult Income dataset is based on U.S. Census data. The goal is to predict whether an individual's income exceeds $50K/year based on attributes such as age, education, occupation, and more.
 
-Note that this dataset is defined in the `adult_dataset.py` file, with data preprocessing included. The dataset includes some missing datasets which are automatically corrected by the dataset's definition. This is a great reference for creating your own datasets for use with this tool.
+## Custom Dataset Handling
 
-## MLP
+This example features a unique `adult_dataset.py` file. Unlike standard datasets in `torchvision`, this dataset requires manual loading and preprocessing:
+- **CSV Processing:** Automatically downloads and cleans data using `pandas`.
+- **Handling Missing Values:** Drops rows with missing (`?`) attributes.
+- **Categorical Encoding:** Uses `sklearn.preprocessing.LabelEncoder` to convert strings (e.g., job titles) into numerical categories.
+- **Test Set Consistency:** Ensures the test set uses the same category-to-number mappings as the training set.
 
-With simple tabular data like this, and MLP very quickly reaches a high accuracy on this dataset. In only a couple of epochs, accuracies of >98% are possible. Each epoch also runs relatively quickly, with execution only taking a few seconds per epoch on a Nvidia 2070 Super.
+## Configurations
 
-## CNN
+Inherits from `adult_base.py`, which uses `TabularNormalize` with pre-calculated mean and standard deviation (calculated using the stats mode of this tool!).
 
-CNNs are normally used for image data, but with the UCi Adult Income dataset being tabular, it shouldn't be possible to apply a CNN. Of course, it is possible to convert each column of the input tables into a pixel in a 2d matrix, which allows for the application of a CNN. With the high performance of MLPs on this dataset, a CNN really isn't necessary, but is included to show how tabular data can be run through powerful image networks.
+### 1. Multi-Layer Perceptron (MLP)
+- **Config:** `adult_mlp.py`
+- **Details:** Perfectly suited for tabular data. Achieves >98% accuracy in just a few epochs.
+- **Command:**
+  ```bash
+  cd examples/UCIAdultIncome
+  python ../../main.py job --config adult_mlp.py
+  ```
+
+### 2. Convolutional Neural Network (CNN)
+- **Config:** `adult_cnn.py`
+- **Details:** **Reshaping Tabular Data:** This example demonstrates how to reshape a 1D vector (14 attributes) into a 2D matrix (though often redundant for tabular data, it's an important educational concept).
+- **Command:**
+  ```bash
+  cd examples/UCIAdultIncome
+  python ../../main.py job --config adult_cnn.py
+  ```
+
+## Visualizations
+
+```bash
+python ../../main.py vis --config adult_mlp.py
+```
+
+### Metrics & Predictions
+| Training Progress | Sample Predictions |
+| :---: | :---: |
+| ![Adult Income Loss/Accuracy](../../images/adult_combined.png) | ![Adult Income Predictions](../../images/adult_samples.png) |
+
+### Model Architecture
+![Adult Income Architecture](../../images/adult_model.png)
