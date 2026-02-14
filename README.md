@@ -2,7 +2,13 @@
 
 > **A beginner-friendly tool for training and testing PyTorch models without the boilerplate.**
 
-Welcome to `simple-ml-runner`! This project is designed to help students and researchers focus on **designing models** and **analyzing results**, rather than writing the same training loops over and over again.
+Welcome to `simple-ml-runner`! This project is designed to help students and researchers focus on designing models and analyzing results, rather than writing the same training loops over and over again.
+
+## WARNING!!!
+
+This project dynamically loads python files in order to create models and datasets. This is incredibly powerful for an educational tool like this, since it allows for just about any model architecture you can write in Pytorch, as well as custom datasets, optimizers, and loss functions.
+
+**However**, dynamically executing arbitrary python code can be dangerous. Only run configs you understand 100% and never run configs from the internet.
 
 ## 🚀 How It Works
 
@@ -10,12 +16,13 @@ Traditional machine learning projects require writing code to load data, iterate
 
 **Simple ML Runner handles all of that for you.**
 
-You simply provide a **Configuration File** (a Python script) that defines:
-1.  **The Model**: Your neural network architecture.
-2.  **The Data**: Where your training and testing data comes from.
-3.  **The Hyperparameters**: Settings like learning rate, batch size, and epochs.
+You simply provide a Configuration File that defines:
 
-The runner takes this config and executes the entire **Job** (Training + Testing), saving all results and models automatically.
+1. **The Model**: Your neural network architecture.
+2. **The Data**: Where your training and testing data comes from.
+3. **The Hyperparameters**: Settings like learning rate, batch size, and epochs.
+
+The runner takes this config and executes the entire Job (Training + Testing), saving all results and models automatically.
 
 ---
 
@@ -23,7 +30,8 @@ The runner takes this config and executes the entire **Job** (Training + Testing
 
 All you need is Python and the project dependencies.
 
-1.  **Create a Virtual Environment** (Recommended):
+1. **Create a Virtual Environment** (Recommended):
+
     ```bash
     # Windows
     python -m venv .venv
@@ -34,58 +42,45 @@ All you need is Python and the project dependencies.
     source .venv/bin/activate
     ```
 
-2.  **Install Dependencies**:
+2. **Install Dependencies**:
+
+    All dependencies can be installed from requirements.txt, but if you have a CUDA enabled GPU (basically anything from Nvidia) pytorch and torchvision should be installed separately according to pytorch's getting started guide.
+
+    Go to [Getting Started](https://pytorch.org/get-started/locally/) and select your operation system, pip, python, and the desired CUDA version (any should work on the provided examples), then run the provided command.
+
+    After installing Pytorch with CUDA support, or if you do not have a CUDA GPU, run
+
     ```bash
     pip install -r requirements.txt
+    ```
+
+    To install the remaining requirements. Some examples have additional requirements used for fetching datasets, if you want to run those additionally run 
+
+    ```bash
+    pip install -r ./examples/requirements.txt
     ```
 
 ---
 
 ## ⚡ Quick Start: MNIST Example
 
-The "Hello World" of Machine Learning is the **MNIST** dataset (handwritten digits). Let's train a simple neural network to recognize them.
+The "Hello World" of Machine Learning is the MNIST dataset (handwritten digits). Let's run the provided example to train a model!
 
-**Run the job:**
+### Run the job
+
+It is recommended to invoke the main job from the example's directory since config paths are relative to the directory you execute `main.py` from, not where the config is stored. So first open the directory containing the MNIST examples, then run the job.
+
 ```bash
-python main.py job --config examples/MNIST/mnist_shared_mlp.py
+cd examples/MNIST
+python ../../main.py job --config mnist_shared_mlp.py
 ```
 
-**What happens?**
-1.  The dataset is downloaded automatically.
-2.  The model (a Multi-Layer Perceptron) is initialized.
-3.  Training starts for the defined number of epochs.
-4.  Results are saved to `results/` and checkpoints to `checkpoints/`.
+### What happens?
 
----
-
-## 📚 Running Examples
-
-We have included several example configurations to help you get started with different types of data.
-
-### 1. MNIST (Handwritten Digits)
-*Type: Image Classification (Grayscale)*
-
--   **MLP (Simple):** `examples/MNIST/mnist_shared_mlp.py`
--   **CNN (Advanced):** `examples/MNIST/mnist_shared_cnn.py`
-
-### 2. CIFAR-100 (Object Recognition)
-*Type: Image Classification (Color, 100 classes)*
-
--   **MLP:** `examples/CIFAR-100/cifar100_shared_mlp.py`
--   **CNN:** `examples/CIFAR-100/cifar100_shared_cnn.py`
-
-### 3. PatchCamelyon (Medical Imaging)
-*Type: Binary Classification (Tumor detection)*
-
--   **MLP:** `examples/PatchCamelyon/pcam_shared_mlp.py`
--   **CNN:** `examples/PatchCamelyon/pcam_shared_cnn.py`
-
-### 4. UCI Adult Income (Census Data)
-*Type: Tabular Prediction (>50k income)*
-
--   **MLP:** `examples/UCIAdultIncome/adult_shared_mlp.py`
--   **CNN (Experimental):** `examples/UCIAdultIncome/adult_shared_cnn.py`
-    *   *Note: This demonstrates how to reshape tabular data to fit into a CNN architecture.*
+1. The dataset is downloaded automatically.
+2. The model (a Multi-Layer Perceptron) is initialized.
+3. Training starts for the defined number of epochs.
+4. Results are saved to `results/` and checkpoints to `checkpoints/`.
 
 ---
 
@@ -93,10 +88,13 @@ We have included several example configurations to help you get started with dif
 
 After training, you can visualize the results (Loss curves, Accuracy, Model Architecture, etc.) without writing any plotting code.
 
-**Generate Visualizations:**
+Simply run
+
 ```bash
-python main.py vis --config examples/MNIST/mnist_shared_mlp.py
+python ../../main.py vis --config mnist_shared_mlp.py
 ```
+
+And a collection of chart images will be output to the `vis/mlp/` directory
 
 ### Example Outputs
 
@@ -110,27 +108,59 @@ python main.py vis --config examples/MNIST/mnist_shared_mlp.py
 
 ---
 
-## 🛠️ Configuration Reference
+## 📚 Running Examples
 
-You can customize your experiments by modifying the config files. Here are the most common settings:
+Several example configurations are included to help you get started with different types of data and models. You can view more about each of these individual models in the `examples/` directory.
 
-| Setting | Description | Example |
-| :--- | :--- | :--- |
-| `MODEL` | The neural network object to train. | `MLP(784, 10)` |
-| `EPOCHS` | How many times to iterate over the dataset. | `10` |
-| `BATCH_SIZE` | Number of samples processed at once. | `64` |
-| `LEARNING_RATE` | How fast the model updates its weights. | `0.001` |
-| `TRAIN_DATASET` | The PyTorch dataset for training. | `datasets.MNIST(...)` |
-| `EARLY_HALT_CONDITION` | Stop training if metric stops improving. | `"Accuracy"` |
+### 1. MNIST (Handwritten Digits)
+
+Type: Image Classification (Grayscale)
+
+- **MLP (Simple):** `examples/MNIST/mnist_shared_mlp.py`
+- **CNN (Advanced):** `examples/MNIST/mnist_shared_cnn.py`
+
+### 2. CIFAR-100 (Object Recognition)
+
+Type: Image Classification (Color, 100 classes)
+
+- **MLP:** `examples/CIFAR-100/cifar100_shared_mlp.py`
+- **CNN:** `examples/CIFAR-100/cifar100_shared_cnn.py`
+
+### 3. PatchCamelyon (Medical Imaging)
+
+Type: Binary Classification (Tumor detection)
+
+- **MLP:** `examples/PatchCamelyon/pcam_shared_mlp.py`
+- **CNN:** `examples/PatchCamelyon/pcam_shared_cnn.py`
+
+### 4. UCI Adult Income (Census Data)
+
+Type: Tabular Prediction (>50k income)
+
+- **MLP:** `examples/UCIAdultIncome/adult_shared_mlp.py`
+- **CNN:** `examples/UCIAdultIncome/adult_shared_cnn.py`
+  - Note: This demonstrates how to reshape tabular data to fit into a CNN architecture.
+
+---
+
+## 🛠️ Configuration
+
+You can customize the examples or write your own experiments using using config files. The models and datasets are intentionally defined as pytorch Model and Dataset objects to give you full flexibility in your experiments. Your config files can be a Python, JSON, YAML, TOML, or INI file, just note that when not using a Python file you will need to point your configs to one or more Python files containing your Model and Dataset objects.
+
+For complete configuration documentation, see [Configuration Reference](#configuration-reference)
 
 ### Advanced Usage: Inheritance
+
 You can inherit settings from other config files to avoid repetition!
+
 ```python
 # my_experiment.py
 CONFIG = "base_config.py"  # Load defaults from here
 
-LEARNING_RATE = 0.01       # Override specific value
+LEARNING_RATE = 0.01       # Override value
 ```
+
+All settings can also be overridden by environment variables or command line arguments for quick testing.
 
 ## Modes
 
@@ -138,23 +168,53 @@ The first cli argument when executing the tool will decide what mode it runs in.
 
 ### Training
 
+```bash
+python main.py train [..args]
+```
 
+In training mode the tool will ignore the `TRAIN` configuration and `--dont-train` flags and always run the training phase.
 
 ### Testing
 
+```bash
+python main.py test [..args]
+```
 
+In testing mode the tool will ignore the `TEST` configuration and `--dont-test` flags and always run the testing phase.
 
 ### Job
 
+```bash
+python main.py job [..args]
+```
 
+Job mode is the most commonly used. It sequentially runs the training and testing phases together. Either phase can be bypassed using the appropriate CLI argument (`--dont-train`, `--dont-test`), which can be useful if an experiment gets interrupted.
 
 ### Batch
 
+```bash
+python main.py batch [..args]
+```
 
+In batch mode the tool will sequentially run a series of configs in job mode. Add jobs to be run by passing their configs with the `--jobs` argument. You can use the `--jobs` argument multiple times to add every config you want to run.
 
 ### Visualization
 
+```bash
+python main.py vis [..args]
+```
 
+Running in visualization mode will use the output from enabling `SAVE_TESTS` and/or `PROFILE` to generate graphs of training results, model architecture, and examples of model inference. 
+
+Use the `SHOW` key to open windows to view these graphs, or provide a `VIS_OUTPUT_DIR` to save images automatically. Use `VIS_METRICS` to choose what graphs to output, including `model` to view your model architecture, `samples` to view examples of your models predictions on your testing dataset, and `combined` to create a graph showing the loss and accuracy of your model on each of your datasets, all in one convenient graph!
+
+### Stats
+
+```bash
+python main.py stats [..args]
+```
+
+Run your config in stats mode to find the mean and standard deviation of your training dataset. Make sure to not apply a transform based on these values when running `stats`, but once you have the mean and standard deviation you can add them to your config as a transform to improve training (check out the examples to see this in action!)
 
 ## Configuration Reference
 
@@ -166,8 +226,6 @@ The following configuration keys can be used in your JSON, YAML, TOML, or Python
 | `SILENT` | `bool` | `False` | `--silent` | Suppress console output. |
 | `PROFILE` | `bool` | `False` | `--profile` | Enable performance profiling. |
 | `PROFILE_OUTPUT` | `str` | `None` | `--profile-output` | Path to save profiling report. |
-<!-- | `PROFILE_DIR` | `str` | `''` | | Directory to search for profiling logs (vis only). |
-| `PROFILE_NAME` | `str` | `''` | | Name of profiling log file (vis only). | -->
 | **Model & Device** | | | | |
 | `MODEL` | `str` | `None` | `--model` | Path to python file defining the model (must contain `MODEL` or `Net` object). |
 | `DEVICES` | `list` | `['cpu']` | `--devices` | List of devices to use (e.g., `['cuda', 'cpu']`). |
@@ -217,4 +275,4 @@ Example: `export EPOCHS=10`
 
 ### CLI Arguments
 
-CLI arguments override individual config keys. See `python main.py --help` for a full list.
+CLI arguments override their config keys. See `python main.py --help` for a full list of available CLI arguments and their descriptions.

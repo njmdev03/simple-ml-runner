@@ -1,0 +1,26 @@
+from examples.shared.ViT import VisionTransformer
+
+CONFIG = "pcam_base.py"
+
+# PatchCamelyon: 96x96 RGB, 2 classes
+MODEL = VisionTransformer(
+    img_size=96,
+    patch_size=8,
+    in_channels=3,
+    num_classes=2,
+    embed_dim=256,
+    depth=8,
+    num_heads=8,
+    mlp_ratio=4.0,
+    dropout=0.1
+)
+
+
+FINAL_OUTPUT_PATH = "models/pcam_vit_final.pt"
+CHECK_MODEL_DIR = "checkpoints/pcam-vit/"
+SAVE_TESTS = "results/pcam_vit_results.csv"
+PROFILE_OUTPUT = "profiles/pcam_vit_profile.csv"
+VIS_OUTPUT_DIR = "vis/vit/"
+
+BATCH_SIZE = 128
+EPOCHS = 10
