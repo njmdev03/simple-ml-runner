@@ -122,7 +122,7 @@ class ConfigManager:
             traverse(Path(p))
 
         # Merge tree_order (Bottom-up)
-        print(f"\n Processing config tree {tree_order}")
+        # print(f"\n Processing config tree {tree_order}")
         final_config = self.defaults.copy()
         for cfg in tree_order:
             final_config.update(cfg)
