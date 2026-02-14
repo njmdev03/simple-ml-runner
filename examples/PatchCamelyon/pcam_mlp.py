@@ -13,4 +13,4 @@ PROFILE_OUTPUT = "profiles/pcam_mlp_profile.csv"
 VIS_OUTPUT_DIR = "vis/mlp/"
 
 BATCH_SIZE = 16000
-EPOCHS = 10
+EPOCHS = 3

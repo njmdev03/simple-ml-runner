@@ -13,4 +13,4 @@ PROFILE_OUTPUT = "profiles/pcam_cnn_profile.csv"
 VIS_OUTPUT_DIR = "vis/cnn/"
 
 BATCH_SIZE = 600
-EPOCHS = 10
+EPOCHS = 3
