@@ -1,4 +1,4 @@
-from examples.shared.CNN import CNN
+from CNN import CNN
 
 CONFIG = "cifar100_base.py"
 
@@ -12,5 +12,5 @@ SAVE_TESTS = "results/cifar100_cnn_results.csv"
 PROFILE_OUTPUT = "profiles/cifar100_cnn_profile.csv"
 VIS_OUTPUT_DIR = "vis/cnn/"
 
-BATCH_SIZE = 3000
-EPOCHS = 10
+BATCH_SIZE = 256
+EPOCHS = 100
