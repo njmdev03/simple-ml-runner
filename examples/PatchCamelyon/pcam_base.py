@@ -6,10 +6,10 @@ _transform = transforms.Compose([
     transforms.RandomHorizontalFlip(),
     transforms.RandomVerticalFlip(),
     transforms.ToTensor(),
-    # transforms.Normalize(
-    #     (0.7000, 0.5000, 0.7000),
-    #     (0.2000, 0.2000, 0.2000)
-    # )
+    transforms.Normalize(
+        (0.7008, 0.5384, 0.6916),
+        (0.2350, 0.2774, 0.2129)
+    )
 ])
 
 # PCAM has split argument instead of train
