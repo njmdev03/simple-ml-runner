@@ -100,11 +100,11 @@ And a collection of chart images will be output to the `vis/mlp/` directory
 
 | Loss Curve | Accuracy Curve |
 | :---: | :---: |
-| ![Loss Curve Placeholder](docs/placeholders/loss_curve.png) | ![Accuracy Curve Placeholder](docs/placeholders/accuracy_curve.png) |
+| ![Loss Curve Placeholder](images/mnist_mlp_loss.png) | ![Accuracy Curve Placeholder](images/mnist_mlp_acc.png) |
 
 | Sample Predictions | Model Architecture |
 | :---: | :---: |
-| ![Predictions Placeholder](docs/placeholders/predictions.png) | ![Architecture Placeholder](docs/placeholders/architecture.png) |
+| ![Predictions Placeholder](images/mnist_mlp_pred.png) | ![Architecture Placeholder](images/mnist_mlp_arch.png) |
 
 ---
 
