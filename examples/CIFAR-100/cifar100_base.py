@@ -4,6 +4,7 @@ CONFIG = "../shared/base_config.py"
 
 # Set up the transforms for training and testing. We use data augmentation for training, but not for testing.
 _train_transform = transforms.Compose([
+    transforms.TrivialAugmentWide(),
     transforms.RandomHorizontalFlip(),
     transforms.RandomCrop(32, padding=4),
     transforms.ToTensor(),
