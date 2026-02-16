@@ -13,6 +13,3 @@ PROFILE_OUTPUT = "profiles/mnist_mlp_profile.csv"
 VIS_OUTPUT_DIR = "vis/mlp/"
 
 MODEL = MLP(28 * 28 ,10)
-
-EPOCHS = 10
-BATCH_SIZE = 8000

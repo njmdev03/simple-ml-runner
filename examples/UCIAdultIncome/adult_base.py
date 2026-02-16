@@ -25,5 +25,9 @@ TEST_DATASET = AdultDataset(
     target_encoder=TRAIN_DATASET.target_encoder
 )
 
-BATCH_SIZE = 4000
+# Load fewer items in training to allow for gradient propagation
+BATCH_SIZE = 128
 EPOCHS = 10
+
+# Load the whole dataset when testing for speed
+TESTING_BATCH_SIZE = 20000

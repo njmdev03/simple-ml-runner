@@ -20,6 +20,3 @@ CHECK_MODEL_DIR = "checkpoints/mnist-vit/"
 SAVE_TESTS = "results/mnist_vit_results.csv"
 PROFILE_OUTPUT = "profiles/mnist_vit_profile.csv"
 VIS_OUTPUT_DIR = "vis/vit/"
-
-BATCH_SIZE = 128
-EPOCHS = 10

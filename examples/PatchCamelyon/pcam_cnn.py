@@ -12,5 +12,5 @@ SAVE_TESTS = "results/pcam_cnn_results.csv"
 PROFILE_OUTPUT = "profiles/pcam_cnn_profile.csv"
 VIS_OUTPUT_DIR = "vis/cnn/"
 
-BATCH_SIZE = 600
-EPOCHS = 3
+BATCH_SIZE = 256
+EPOCHS = 10

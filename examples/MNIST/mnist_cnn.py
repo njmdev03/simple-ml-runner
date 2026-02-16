@@ -13,6 +13,3 @@ PROFILE_OUTPUT = "profiles/mnist_cnn_profile.csv"
 VIS_OUTPUT_DIR = "vis/cnn/"
 
 MODEL = CNN(1 ,10)
-
-EPOCHS = 10
-BATCH_SIZE = 8000

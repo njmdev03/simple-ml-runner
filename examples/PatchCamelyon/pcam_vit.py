@@ -1,3 +1,4 @@
+import torch.optim as optim
 from examples.shared.ViT import VisionTransformer
 
 CONFIG = "pcam_base.py"
@@ -22,5 +23,9 @@ SAVE_TESTS = "results/pcam_vit_results.csv"
 PROFILE_OUTPUT = "profiles/pcam_vit_profile.csv"
 VIS_OUTPUT_DIR = "vis/vit/"
 
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 EPOCHS = 10
+
+# Custom learning required for
+LEARNING_RATE = 1e-4  # Start even lower for stability
+OPTIMIZER = lambda params, lr: optim.AdamW(params, lr=lr, weight_decay=0.01)

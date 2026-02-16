@@ -12,5 +12,5 @@ SAVE_TESTS = "results/pcam_mlp_results.csv"
 PROFILE_OUTPUT = "profiles/pcam_mlp_profile.csv"
 VIS_OUTPUT_DIR = "vis/mlp/"
 
-BATCH_SIZE = 16000
-EPOCHS = 3
+BATCH_SIZE = 256
+EPOCHS = 10

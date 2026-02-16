@@ -28,3 +28,5 @@ TRAIN_DATASET = datasets.CIFAR100(
 TEST_DATASET = datasets.CIFAR100(
     './data', train=False, download=True, transform=_test_transform
 )
+
+TESTING_BATCH_SIZE = 8192
