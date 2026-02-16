@@ -35,7 +35,7 @@ class Trainer:
         total = 0
 
         for batch_idx, (data, target) in enumerate(loader):
-            data, target = data.to(self.device), target.to(self.device)
+            data, target = data.to(self.device, non_blocking=True), target.to(self.device, non_blocking=True)
             optimizer.zero_grad()
             output = self.model(data)
             loss = self.criterion(output, target)
