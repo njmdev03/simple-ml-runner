@@ -23,7 +23,7 @@ MLPs perform very well on simple datasets with few classes. Two great examples o
 
 CNNs perform much better on the image datasets. While it is possible to convert tabular data to something a CNN can process (as shown with UCI Adult Income), it is not recommended, since CNNs are designed around the fact the neighboring pixels are related, which may or may not be true when converting tabular data. The CNNs perform well on all of the provided datasets.
 
-Vision Transformers are provided to show off a more modern setup. They should perform very well on complex image datasets, however they are much more difficult to train, requiring many more epochs than other models and more complex training setups. The provided examples still have a lot of room for improvement, but the basic ideas are present in the examples.
+Vision Transformers are provided to show off a more modern setup. They should perform very well on complex image datasets, however they are much more difficult to train, requiring many more epochs than other models and more complex training setups. The provided examples still have a lot of room for improvement, but the basic ideas are present in the examples. These examples will require a much more powerful machine and more training time.
 
 ## Example Datasets
 
