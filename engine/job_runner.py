@@ -90,11 +90,11 @@ def run_job(config):
         evaluator = Evaluator(config, model, device, profiler=profiler)
 
         if test_dataset:
-            test_loader = DataLoader(test_dataset, batch_size=config.get('TESTING_BATCH_SIZE') or config.get('BATCH_SIZE'))
+            test_loader = DataLoader(test_dataset, batch_size=config.get('TESTING_BATCH_SIZE'))
 
         # Testing loader for training dataset
         if config.get('TEST_ON_TRAINING_DATA') and train_dataset:
-            train_eval_loader = DataLoader(train_dataset, batch_size=config.get('TESTING_BATCH_SIZE') or config.get('BATCH_SIZE'))
+            train_eval_loader = DataLoader(train_dataset, batch_size=config.get('TESTING_BATCH_SIZE'))
 
     if profiler:
         ds_dur = profiler.stop("dataset_loading")

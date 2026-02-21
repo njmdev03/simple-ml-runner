@@ -1,6 +1,8 @@
 import importlib.util
 import sys
+import os
 from pathlib import Path
+
 
 # Used for loading Models or datasets from .py file paths.
 def load_from_pyscript(script_path, attribute_name):
@@ -8,6 +10,7 @@ def load_from_pyscript(script_path, attribute_name):
     module_name = path.stem
 
     original_sys_path = list(sys.path)
+    original_cwd = os.getcwd()
     sys.path.insert(0, str(path.parent))
 
     try:
@@ -17,6 +20,11 @@ def load_from_pyscript(script_path, attribute_name):
 
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
+
+        # Ensure relative file operations inside the script resolve from the
+        # script's directory by temporarily changing cwd.
+        os.chdir(str(path.parent))
+
         spec.loader.exec_module(module)
 
         # Support trying multiple attributes
@@ -27,4 +35,6 @@ def load_from_pyscript(script_path, attribute_name):
 
         raise AttributeError(f"Module {module_name} has none of the attributes: {attrs}")
     finally:
+        # restore process state
+        os.chdir(original_cwd)
         sys.path = original_sys_path
