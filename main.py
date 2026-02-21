@@ -8,6 +8,8 @@ from engine.compute_transforms import compute_stats
 from engine.job_runner import run_job
 from reporting.visualizer import Visualizer
 
+logger = logging.getLogger(__name__)
+
 def parse_args():
     parser = argparse.ArgumentParser(description="ML Job Runner - Train and Test ML models via config.")
 
@@ -80,16 +82,13 @@ def parse_args():
 
     return parser.parse_args()
 
-def setup_logger(is_silent: bool):
+def setup_logging(is_silent: bool):
     level = logging.WARNING if is_silent else logging.INFO
     logging.basicConfig(
         level=level,
         format='[%(asctime)s] %(levelname)s - %(message)s',
         datefmt='%H:%M:%S'
     )
-    return logging.getLogger(__name__)
-
-logger = None
 
 def load_config(config_paths, args=None):
     manager = ConfigManager()
@@ -150,9 +149,9 @@ def main():
     # Parse the passed arguments
     args = parse_args()
 
-    # Setup logger
-    global logger
-    logger = setup_logger(args.silent or os.environ.get('SILENT', '').lower() in ('true', '1', 'yes', 'on'))
+    # Setup logging
+    silent_mode = args.silent or os.environ.get('SILENT', '').lower() in ('true', '1', 'yes', 'on')
+    setup_logging(silent_mode)
 
     # Parse the passed configs
     config_paths = args.config if args.config else []
