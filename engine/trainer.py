@@ -2,31 +2,24 @@ import torch
 import os
 import json
 from string import Template
-from typing import Dict, Any, Callable
+from typing import Callable
 
 class Trainer:
-    def __init__(self, config: Dict[str, Any], model: torch.nn.Module, device: torch.device, profiler=None):
+    def __init__(self, config, model: torch.nn.Module, device: torch.device, profiler=None):
         self.config = config
         self.model = model
         self.device = device
         self.profiler = profiler
 
         self.optimizer_cls = self._get_optimizer()
-        self.criterion = self._get_criterion()
+        self.criterion = self.config.TRAIN_CRITERION
 
     def _get_optimizer(self):
-        opt_name = self.config.get('OPTIMIZER')
+        opt_name = self.config.OPTIMIZER
         if isinstance(opt_name, str):
             import torch.optim as optim
             return getattr(optim, opt_name)
         return opt_name # might be a factory/lambda
-
-    def _get_criterion(self):
-        crit = self.config.get('TRAIN_CRITERION')
-        if isinstance(crit, str):
-            import torch.nn as nn
-            return getattr(nn, crit)()
-        return crit
 
     def train_epoch(self, loader, optimizer, epoch):
         self.model.train()
@@ -47,7 +40,7 @@ class Trainer:
             correct += pred.eq(target.view_as(pred)).sum().item()
             total += target.size(0)
 
-            if not self.config.get('SILENT'):
+            if not self.config.SILENT:
                 if batch_idx % 10 == 0:
                     print(f'Train Epoch: {epoch} [{batch_idx * len(data)}/{len(loader.dataset)} '
                           f'({100. * batch_idx / len(loader):.0f}%)]\tLoss: {loss.item():.6f}')
@@ -57,17 +50,17 @@ class Trainer:
         return avg_loss, accuracy
 
     def save_checkpoint(self, epoch, avg_loss, accuracy):
-        cp_dir = self.config.get('CHECK_MODEL_DIR')
+        cp_dir = self.config.CHECK_MODEL_DIR
         if not os.path.exists(cp_dir):
             os.makedirs(cp_dir, exist_ok=True)
 
-        cp_name_template = Template(self.config.get('CHECK_MODEL_NAME'))
+        cp_name_template = Template(self.config.CHECK_MODEL_NAME)
         cp_file_name = cp_name_template.substitute(epoch=epoch) + ".pt"
         cp_path = os.path.join(cp_dir, cp_file_name)
 
         torch.save(self.model.state_dict(), cp_path)
 
-        if self.config.get('SAVE_METADATA'):
+        if self.config.SAVE_METADATA:
             meta_path = os.path.join(cp_dir, cp_file_name.replace(".pt", ".json"))
             metadata = {
                 "checkpoint": cp_file_name,
@@ -81,18 +74,18 @@ class Trainer:
         return cp_path
 
     def run(self, train_loader, eval_callback: Callable = None):
-        lr = self.config.get('LEARNING_RATE')
+        lr = self.config.LEARNING_RATE
         # Handle the case where OPTIMIZER is a lambda like in the user's example
         if hasattr(self.optimizer_cls, '__call__') and not isinstance(self.optimizer_cls, type):
             optimizer = self.optimizer_cls(self.model.parameters(), lr)
         else:
             optimizer = self.optimizer_cls(self.model.parameters(), lr=lr)
 
-        epochs = self.config.get('EPOCHS')
+        epochs = self.config.EPOCHS
         start_epoch = 1
 
         # Resume logic
-        resume = self.config.get('RESUME')
+        resume = self.config.RESUME
         if resume:
             if isinstance(resume, str) and os.path.isfile(resume):
                 self.load_checkpoint(resume)
@@ -114,36 +107,36 @@ class Trainer:
             if self.profiler:
                 epoch_duration = self.profiler.stop(f"epoch_{epoch}")
                 # self.profiler.record_epoch(epoch, epoch_duration)
-                if not self.config.get('SILENT'):
+                if not self.config.SILENT:
                     print(f"Epoch {epoch} finished in {epoch_duration:.2f}s")
 
             # Checkpoint
-            rate = self.config.get('CHECK_RATE')
+            rate = self.config.CHECK_RATE
             if rate > 0 and epoch % rate == 0:
                 self.save_checkpoint(epoch, loss, acc)
 
             # Early Halt
-            halt_cond = self.config.get('EARLY_HALT_CONDITION')
-            halt_thresh = self.config.get('EARLY_HALT_THRESHOLD')
-
-            if halt_cond == 'Loss' and loss < halt_thresh:
+            halt_cond = self.config.EARLY_HALT_CONDITION
+            halt_thresh = self.config.EARLY_HALT_THRESHOLD
+            
+            if halt_cond and halt_cond.value == 'Loss' and loss < halt_thresh:
                 print(f"Early halting: Loss {loss} < threshold {halt_thresh}")
                 break
-            elif halt_cond == 'Accuracy' and acc > halt_thresh:
+            elif halt_cond and halt_cond.value == 'Accuracy' and acc > halt_thresh:
                 print(f"Early halting: Accuracy {acc} > threshold {halt_thresh}")
                 break
 
             # Eval while training
-            if self.config.get('TEST_WHILE_TRAINING') and eval_callback:
+            if self.config.TEST_WHILE_TRAINING and eval_callback:
                 eval_callback(epoch)
 
         if self.profiler:
             train_duration = self.profiler.stop("training")
-            if not self.config.get('SILENT'):
+            if not self.config.SILENT:
                 print(f"Total training time: {train_duration:.2f}s")
 
         # Final save
-        final_path = self.config.get('FINAL_OUTPUT_PATH')
+        final_path = self.config.FINAL_OUTPUT_PATH
         try:
             os.makedirs(os.path.dirname(final_path), exist_ok=True) if os.path.dirname(final_path) else None
             torch.save(self.model.state_dict(), final_path)
@@ -164,7 +157,7 @@ class Trainer:
         return 0
 
     def _get_latest_checkpoint(self):
-        cp_dir = self.config.get('CHECK_MODEL_DIR')
+        cp_dir = self.config.CHECK_MODEL_DIR
         if not os.path.exists(cp_dir):
             return None
         checkpoints = [f for f in os.listdir(cp_dir) if f.endswith(".json")]

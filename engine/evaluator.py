@@ -1,35 +1,17 @@
 import torch
 import os
 import json
-from typing import Dict, Any
 
 class Evaluator:
-    def __init__(self, config: Dict[str, Any], model: torch.nn.Module, device: torch.device, profiler=None):
+    def __init__(self, config, model: torch.nn.Module, device: torch.device, profiler=None):
         self.config = config
         self.model = model
         self.device = device
         self.profiler = profiler
-        self.criteria = self._get_criteria()
+        
+        self.criteria = [(type(c).__name__, c) for c in self.config.TESTING_CRITERION]
 
-    def _get_criteria(self):
-        codes = self.config.get('TESTING_CRITERION')
 
-        if not isinstance(codes, list):
-            codes = [codes]
-
-        criteria = []
-        for code in codes:
-            if isinstance(code, str):
-                import torch.nn as nn
-                try:
-                    criteria.append((code, getattr(nn, code)()))
-                except AttributeError:
-                    # TODO: Try using invalid strs, I don't think we can fallback.
-                    # Fallback or assume it's a factory provided in config
-                    criteria.append((str(code), code))
-            else:
-                criteria.append((str(code), code))
-        return criteria
 
     def evaluate(self, loader, name="Test", loader_name=None):
         # Start a profiling segment if profiler is provided
@@ -68,13 +50,13 @@ class Evaluator:
                 results[f"{crit_name}_loss"] = avg_loss
                 results[f"{crit_name}_accuracy"] = accuracy
 
-                if not self.config.get('SILENT'):
+                if not self.config.SILENT:
                     print(f'{name} set: {crit_name} Average loss: {avg_loss:.4f}, Accuracy: {correct}/{total} ({accuracy*100:.2f}%)')
 
         if self.profiler:
             duration = self.profiler.stop(p_key)
 
-            if not self.config.get('SILENT'):
+            if not self.config.SILENT:
                 print(f"{name} set evaluation finished in {duration:.2f}s")
                 print()
 
@@ -85,7 +67,7 @@ class Evaluator:
         if skip_epochs is None:
             skip_epochs = []
 
-        cp_dir = self.config.get('CHECK_MODEL_DIR')
+        cp_dir = self.config.CHECK_MODEL_DIR
         if not os.path.exists(cp_dir):
             return []
 
@@ -106,7 +88,7 @@ class Evaluator:
 
             cp_path = os.path.join(cp_dir, meta['checkpoint'])
 
-            if not self.config.get('SILENT'):
+            if not self.config.SILENT:
                 print(f"--- Evaluating Checkpoint: Epoch {epoch} ---")
 
             self.model.load_state_dict(torch.load(cp_path, map_location=self.device))

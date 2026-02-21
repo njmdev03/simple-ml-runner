@@ -138,7 +138,7 @@ class Config:
     # Meta
     SILENT: bool = DefaultValue.field(False)
     PROFILE: bool = DefaultValue.field(False)
-    PROFILE_OUTPUT: Optional[str] = DefaultValue.field(None)
+    PROFILE_OUTPUT: Optional[Path] = DefaultValue.field(None)
 
     # Model
     MODEL: Any = DefaultValue.field(None)
@@ -149,7 +149,7 @@ class Config:
     # Data
     TRAIN_DATASET: Any = DefaultValue.field(None)
     TEST_DATASET: Any = DefaultValue.field(None)
-    FINAL_OUTPUT_PATH: str = DefaultValue.field('model_final.pt')
+    FINAL_OUTPUT_PATH: Path = DefaultValue.field(Path('model_final.pt'))
 
     # Training Flags
     TRAIN: bool = DefaultValue.field(True)
@@ -164,7 +164,7 @@ class Config:
 
     # Checkpointing
     CHECK_RATE: int = DefaultValue.field(0)
-    CHECK_MODEL_DIR: str = DefaultValue.field('checkpoints/')
+    CHECK_MODEL_DIR: Path = DefaultValue.field(Path('checkpoints/'))
     CHECK_MODEL_NAME: str = DefaultValue.field('model_epoch_$epoch')
     SAVE_METADATA: bool = DefaultValue.field(True)
     # True, auto resume from latest. String, resume from that path
@@ -180,11 +180,11 @@ class Config:
     TEST_ON_TRAINING_DATA: bool = DefaultValue.field(False)
     TEST_WHILE_TRAINING: bool = DefaultValue.field(False)
     TEST_CHECKPOINTS: bool = DefaultValue.field(False)
-    SAVE_TESTS: Optional[str] = DefaultValue.field(None)
+    SAVE_TESTS: Optional[Path] = DefaultValue.field(None)
 
     # Visualization
     VIS_TYPE: List[str] = DefaultValue.field(['all'])
-    VIS_OUTPUT_DIR: str = DefaultValue.field('vis')
+    VIS_OUTPUT_DIR: Path = DefaultValue.field(Path('vis'))
     VIS_FORMAT: str = DefaultValue.field('png')
     VIS_LAYOUT: str = DefaultValue.field('individual')
     SHOW: bool = DefaultValue.field(False)
@@ -210,7 +210,7 @@ class Config:
             key = k.upper().replace('-', '_')
 
             # Resolve file paths relative to base_path for keys annotated as Path
-            if isinstance(v, str) and base_path:
+            if isinstance(v, (str, Path)) and base_path:
                 if key in _PATH_LIKE_FIELDS:
                     p = Path(v)
                     if not p.is_absolute():
@@ -388,14 +388,43 @@ class Config:
                 if val is None:
                     setattr(rc, name, None)
                 else:
-                    # Only coerce strings/Path-likes to Path; leave other
-                    # unexpected types as-is to avoid TypeErrors.
                     if isinstance(val, Path):
                         setattr(rc, name, val)
                     elif isinstance(val, (str, bytes, os.PathLike)):
                         setattr(rc, name, Path(val))
                     else:
                         setattr(rc, name, val)
+                continue
+
+            # Enum Handling
+            origin = get_origin(tp)
+            if origin in (list, List):
+                args = get_args(tp)
+                if args and isinstance(args[0], type) and issubclass(args[0], Enum):
+                    enum_cls = args[0]
+                    if isinstance(val, (list, tuple)):
+                        resolved_list = []
+                        for item in val:
+                            if isinstance(item, str):
+                                try:
+                                    resolved_list.append(enum_cls(item) if any(e.value == item for e in enum_cls) else enum_cls[item.upper()])
+                                except:
+                                    # Fallback: try case-insensitive or ignore
+                                    resolved_list.append(item)
+                            else:
+                                resolved_list.append(item)
+                        setattr(rc, name, resolved_list)
+                    else:
+                        setattr(rc, name, val)
+                    continue
+            elif isinstance(tp, type) and issubclass(tp, Enum):
+                if isinstance(val, str):
+                    try:
+                        setattr(rc, name, tp(val) if any(e.value == val for e in tp) else tp[val.upper()])
+                    except:
+                        setattr(rc, name, val)
+                else:
+                    setattr(rc, name, val)
                 continue
 
             # Default: copy the value through (LazyObjects preserved)
@@ -437,12 +466,12 @@ class Config:
         if isinstance(spec, LazyObject):
             return spec
 
-        # String handling
-        if isinstance(spec, str):
+        # String or Path handling
+        if isinstance(spec, (str, Path)):
             # If points to a .py file or filesystem path -> lazy load from script
             p = Path(spec)
             if p.suffix == '.py' or p.exists():
-                return LazyObject(lambda: load_from_pyscript(spec, ["MODEL", "Net"]))
+                return LazyObject(lambda: load_from_pyscript(str(p), ["MODEL", "Net"]))
 
             # Try dotted import: attempt to import attribute
             if '.' in spec:
@@ -498,9 +527,9 @@ class Config:
         if isinstance(spec, LazyObject):
             return spec
 
-        if isinstance(spec, str):
+        if isinstance(spec, (str, Path)):
             # dotted import
-            if '.' in spec:
+            if isinstance(spec, str) and '.' in spec:
                 def _imp():
                     module_name, _, attr = spec.rpartition('.')
                     mod = importlib.import_module(module_name)
@@ -531,11 +560,11 @@ class Config:
         return spec
 
     def _parse_dataset_spec(self, spec: Any):
-        # If string and looks like .py file or path -> lazy load
-        if isinstance(spec, str):
+        # If string/path and looks like .py file or path -> lazy load
+        if isinstance(spec, (str, Path)):
             p = Path(spec)
             if p.suffix == '.py' or p.exists():
-                return LazyObject(lambda: load_from_pyscript(spec, ["TRAIN_DATASET", "TEST_DATASET", "Dataset", "dataset"]))
+                return LazyObject(lambda: load_from_pyscript(str(p), ["TRAIN_DATASET", "TEST_DATASET", "Dataset", "dataset"]))
             # dotted imports can be supported in future
             return spec
 
