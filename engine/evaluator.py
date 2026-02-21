@@ -1,6 +1,9 @@
 import torch
 import os
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Evaluator:
     def __init__(self, config, model: torch.nn.Module, device: torch.device, profiler=None):
@@ -8,7 +11,7 @@ class Evaluator:
         self.model = model
         self.device = device
         self.profiler = profiler
-        
+
         self.criteria = [(type(c).__name__, c) for c in self.config.TESTING_CRITERION]
 
 
@@ -50,15 +53,11 @@ class Evaluator:
                 results[f"{crit_name}_loss"] = avg_loss
                 results[f"{crit_name}_accuracy"] = accuracy
 
-                if not self.config.SILENT:
-                    print(f'{name} set: {crit_name} Average loss: {avg_loss:.4f}, Accuracy: {correct}/{total} ({accuracy*100:.2f}%)')
+                logger.info(f'{name} set: {crit_name} Average loss: {avg_loss:.4f}, Accuracy: {correct}/{total} ({accuracy*100:.2f}%)')
 
         if self.profiler:
             duration = self.profiler.stop(p_key)
-
-            if not self.config.SILENT:
-                print(f"{name} set evaluation finished in {duration:.2f}s")
-                print()
+            logger.info(f"{name} set evaluation finished in {duration:.2f}s")
 
         return results
 
@@ -88,8 +87,7 @@ class Evaluator:
 
             cp_path = os.path.join(cp_dir, meta['checkpoint'])
 
-            if not self.config.SILENT:
-                print(f"--- Evaluating Checkpoint: Epoch {epoch} ---")
+            logger.info(f"--- Evaluating Checkpoint: Epoch {epoch} ---")
 
             self.model.load_state_dict(torch.load(cp_path, map_location=self.device))
             res = self.evaluate(loader, name=f"Epoch {epoch}", loader_name=loader_name)

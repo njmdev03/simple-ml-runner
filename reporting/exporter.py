@@ -1,12 +1,15 @@
 import pandas as pd
 import os
+import logging
 from typing import List, Dict, Any
+
+logger = logging.getLogger(__name__)
 
 class Exporter:
     @staticmethod
     def export(results: List[Dict[str, Any]], path: str):
         if not results:
-            print("No results to export.")
+            logger.warning("No results to export.")
             return
 
         df = pd.DataFrame(results)
@@ -28,12 +31,12 @@ class Exporter:
 
         if ext == '.csv':
             df.to_csv(path, index=False)
-            print(f"Results saved to {path}")
+            logger.info(f"Results saved to {path}")
         elif ext in ['.xlsx', '.xls']:
             df.to_excel(path, index=False)
-            print(f"Results saved to {path}")
+            logger.info(f"Results saved to {path}")
         else:
             # Fallback to CSV
             csv_path = path + ".csv"
             df.to_csv(csv_path, index=False)
-            print(f"Unknown extension {ext}, saved to {csv_path} as CSV instead.")
+            logger.warning(f"Unknown extension {ext}, saved to {csv_path} as CSV instead.")

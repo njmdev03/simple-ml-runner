@@ -3,8 +3,11 @@ import urllib.request
 import pandas as pd
 import numpy as np
 import torch
+import logging
 from torch.utils.data import Dataset
 from sklearn.preprocessing import LabelEncoder
+
+logger = logging.getLogger(__name__)
 
 class AdultDataset(Dataset):
     """PyTorch Dataset for UCI Adult Income with hardcoded categorical/numeric columns."""
@@ -41,9 +44,9 @@ class AdultDataset(Dataset):
 
         if download and not os.path.exists(self.path):
             url = self.urls["train"] if train else self.urls["test"]
-            print(f"Downloading {url} ...")
+            logger.info(f"Downloading {url} ...")
             urllib.request.urlretrieve(url, self.path)
-            print("Download complete.")
+            logger.info("Download complete.")
 
         if not os.path.exists(self.path):
             raise FileNotFoundError(f"{self.path} not found. Use download=True to fetch it.")

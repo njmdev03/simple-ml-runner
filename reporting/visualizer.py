@@ -3,7 +3,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
+import logging
 from typing import List, Tuple
+
+logger = logging.getLogger(__name__)
 
 class Visualizer:
     """Generates visualizations for ML training results and profiling data."""
@@ -22,7 +25,7 @@ class Visualizer:
         if filename:
             path = os.path.join(self.output_dir, f"{filename}.{self.format}")
             fig.savefig(path, dpi=150, bbox_inches='tight')
-            print(f"Saved: {path}")
+            logger.info(f"Saved: {path}")
 
         # If showing, we leave the figure open so plt.show() can be called later
         # If not showing, we close to free memory
@@ -83,7 +86,7 @@ class Visualizer:
         show_accuracy = 'accuracy' in metrics and acc_cols
 
         if not show_loss and not show_accuracy:
-            print("No matching metrics found in results.")
+            logger.warning("No matching metrics found in results.")
             if save_plot:
                 plt.close(fig)
             return
@@ -154,7 +157,7 @@ class Visualizer:
 
         loss_cols = [c for c in results_df.columns if 'loss' in c.lower()]
         if not loss_cols:
-            print("No loss columns found.")
+            logger.warning("No loss columns found.")
             if save_plot:
                 plt.close(fig)
             return
@@ -198,7 +201,7 @@ class Visualizer:
 
         acc_cols = [c for c in results_df.columns if 'accuracy' in c.lower()]
         if not acc_cols:
-            print("No accuracy columns found.")
+            logger.warning("No accuracy columns found.")
             if save_plot:
                 plt.close(fig)
             return
@@ -245,7 +248,7 @@ class Visualizer:
         high_level = profile_df[~profile_df['metric'].str.contains('epoch', case=False)].copy()
 
         if high_level.empty:
-            print("No high-level duration metrics found.")
+            logger.warning("No high-level duration metrics found.")
             return
 
         # Clean up metric names for display
@@ -328,7 +331,7 @@ class Visualizer:
                         pass
 
         if not training_times and not testing_times:
-            print("No per-epoch timing data found.")
+            logger.warning("No per-epoch timing data found.")
             if ax is None:
                 plt.close(fig)
             return
@@ -522,7 +525,7 @@ class Visualizer:
              plots.append(('timing', lambda ax: self.plot_epoch_timing(profile_df, False, ax)))
 
         if not plots:
-            print("No data available for grid view.")
+            logger.warning("No data available for grid view.")
             return
 
         # Calculate grid dimensions

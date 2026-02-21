@@ -1,6 +1,7 @@
 import argparse
 import os
 import matplotlib.pyplot as plt
+import logging
 
 from config.manager import ConfigManager
 from engine.compute_transforms import compute_stats
@@ -79,6 +80,17 @@ def parse_args():
 
     return parser.parse_args()
 
+def setup_logger(is_silent: bool):
+    level = logging.WARNING if is_silent else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format='[%(asctime)s] %(levelname)s - %(message)s',
+        datefmt='%H:%M:%S'
+    )
+    return logging.getLogger(__name__)
+
+logger = None
+
 def load_config(config_paths, args=None):
     manager = ConfigManager()
 
@@ -137,6 +149,10 @@ def vis_samples(config, visualizer):
 def main():
     # Parse the passed arguments
     args = parse_args()
+
+    # Setup logger
+    global logger
+    logger = setup_logger(args.silent or os.environ.get('SILENT', '').lower() in ('true', '1', 'yes', 'on'))
 
     # Parse the passed configs
     config_paths = args.config if args.config else []
@@ -219,15 +235,13 @@ def main():
             save_tests_path = config.SAVE_TESTS
             if save_tests_path and os.path.exists(save_tests_path):
                 results_df = Visualizer.load_results_csv(save_tests_path)
-                if not config.SILENT:
-                    print(f"Loaded results from {save_tests_path}")
+                logger.info(f"Loaded results from {save_tests_path}")
 
             # Load profile CSV from config
             profile_path = config.PROFILE_OUTPUT
             if profile_path and os.path.exists(profile_path):
                 profile_df = Visualizer.load_profile_csv(profile_path)
-                if not config.SILENT:
-                    print(f"Loaded profile from {profile_path}")
+                logger.info(f"Loaded profile from {profile_path}")
 
             # Generate requested visualizations
             from config.config import Visualizations
@@ -261,10 +275,10 @@ def main():
                         model_vis(config, visualizer)
 
             if show_plots:
-                print("Showing plots...")
+                logger.info("Showing plots...")
                 plt.show()
             else:
-                print(f"Visualizations saved to {output_dir}/")
+                logger.info(f"Visualizations saved to {output_dir}/")
         case 'stats':
             # Compute transform stats for the dataset found in the config
             # Make sure that no transforms are provided when running stats
@@ -275,13 +289,13 @@ def main():
 
             mean, std = compute_stats(train_dataset, batch_size=config.BATCH_SIZE)
 
-            print("mean:", mean)
-            print("std:", std)
+            logger.info(f"mean: {mean}")
+            logger.info(f"std: {std}")
 
         case _:
             # Unsupported operation passed, exit.
             # TODO: Add a suggested command based on heuristics of the passed string.
-            print(f"Operation '{args.operation}' is not supported.")
+            logger.error(f"Operation '{args.operation}' is not supported.")
             quit(1)
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import os
 import argparse
+import logging
 from typing import Dict, Any, List
 from pathlib import Path
 
@@ -9,6 +10,8 @@ from .toml_loader import TOMLLoader
 from .ini_loader import INILoader
 from .py_loader import PYLoader
 from .config import Config, ResolvedConfig
+
+logger = logging.getLogger(__name__)
 
 class ConfigManager:
     def __init__(self):
@@ -22,7 +25,7 @@ class ConfigManager:
         }
 
     def load_config_tree(self, initial_paths: List[str]) -> Config:
-        print("Loading configs...")
+        logger.info("Loading configs...")
 
         # loaded_configs = []
         # stack = [(Path(p).resolve(), 0) for p in reversed(initial_paths)]
@@ -39,15 +42,15 @@ class ConfigManager:
                 return
             visited.add(resolved_path)
 
-            print(f"Processing config {resolved_path}")
+            logger.info(f"Processing config {resolved_path}")
 
             ext = resolved_path.suffix.lower()
             loader = self.loaders.get(ext)
             if not loader:
-                print(f"No valid loader found for {resolved_path}")
+                logger.error(f"No valid loader found for {resolved_path}")
                 return
 
-            print(f"Using loader {loader}")
+            logger.debug(f"Using loader {loader}")
 
             content = loader.load(str(resolved_path))
 
@@ -55,13 +58,13 @@ class ConfigManager:
             nested = content.get('CONFIG', [])
             if isinstance(nested, str):
                 nested = [nested]
-                print(f"Found dependent configs {nested}")
+                logger.info(f"Found dependent configs {nested}")
 
             for n_path in nested:
                 n_full_path = resolved_path.parent / n_path
                 traverse(n_full_path)
 
-            print(f"Adding content of {resolved_path} to tree")
+            logger.debug(f"Adding content of {resolved_path} to tree")
 
             tree_order.append((content, resolved_path.parent))
 

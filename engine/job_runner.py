@@ -1,5 +1,6 @@
 import torch
 import os
+import logging
 from torch.utils.data import DataLoader
 from string import Template
 
@@ -7,6 +8,8 @@ from engine.trainer import Trainer
 from engine.evaluator import Evaluator
 from reporting.exporter import Exporter
 from reporting.profiler import Profiler
+
+logger = logging.getLogger(__name__)
 
 def get_device(priority_list):
     if isinstance(priority_list, str):
@@ -27,14 +30,13 @@ def run_job(config):
 
     # 2. Setup Device
     device = get_device(config.DEVICES)
-    if not config.SILENT:
-        print(f"Using device: {device}")
+    logger.info(f"Using device: {device}")
 
     # 3. Load Model
     if profiler: profiler.start("model_loading")
     model_val = config.MODEL
     if not model_val:
-        print(f"Error: MODEL not specified in config.")
+        logger.error(f"Error: MODEL not specified in config.")
         return
 
     model_obj = model_val
@@ -46,8 +48,7 @@ def run_job(config):
         
     if profiler:
         model_dur = profiler.stop("model_loading")
-        if not config.SILENT:
-            print(f"Model loaded in {model_dur:.2f}s")
+        logger.info(f"Model loaded in {model_dur:.2f}s")
 
     # 4. Load Datasets
     if profiler: profiler.start("dataset_loading")
@@ -80,8 +81,7 @@ def run_job(config):
 
     if profiler:
         ds_dur = profiler.stop("dataset_loading")
-        if not config.SILENT:
-            print(f"Datasets loaded in {ds_dur:.2f}s")
+        logger.info(f"Datasets loaded in {ds_dur:.2f}s")
 
     # 5. Training
     all_test_results = []
@@ -127,8 +127,7 @@ def run_job(config):
         # if config.get('TEST_ON_TRAINING_DATA', False) and train_dataset:
         #     train_eval_loader = DataLoader(train_dataset, batch_size=config.get('BATCH_SIZE', 32))
 
-        if not config.SILENT:
-            print("--- Begin Evaluation ---")
+        logger.info("--- Begin Evaluation ---")
 
         if config.TEST_CHECKPOINTS:
             if config.TEST_ON_TRAINING_DATA and train_eval_loader:
@@ -138,8 +137,7 @@ def run_job(config):
             checkpoint_results = evaluator.run_checkpoints(test_loader, loader_name="Testing", skip_epochs=tested_epochs)
             all_test_results.extend(checkpoint_results)
 
-        if not config.SILENT:
-            print("--- Final Model Evaluation ---")
+        logger.info("--- Final Model Evaluation ---")
 
         final_path = config.FINAL_OUTPUT_PATH
         if os.path.exists(final_path):
@@ -160,24 +158,21 @@ def run_job(config):
 
         if profiler:
             test_duration = profiler.stop("testing")
-            if not config.SILENT:
-                print(f"Total testing time: {test_duration:.2f}s")
-                print()
+            logger.info(f"Total testing time: {test_duration:.2f}s")
+
 
     # 7. Export
     if profiler:
         total_duration = profiler.stop("total")
-        if not config.SILENT:
-            print(f"Total process time: {total_duration:.2f}s")
-            print()
+        logger.info(f"Total process time: {total_duration:.2f}s")
+
 
         # Resolve Profile Output Path
         profile_path = config.PROFILE_OUTPUT
 
         if profile_path:
             Exporter.export([profiler.get_report()], profile_path)
-            if not config.SILENT:
-                print(f"Profiling results saved to {profile_path}")
+            logger.info(f"Profiling results saved to {profile_path}")
 
     save_path = config.SAVE_TESTS
     if save_path and all_test_results:

@@ -1,8 +1,11 @@
 import torch
 import os
 import json
+import logging
 from string import Template
 from typing import Callable
+
+logger = logging.getLogger(__name__)
 
 class Trainer:
     def __init__(self, config, model: torch.nn.Module, device: torch.device, profiler=None):
@@ -40,10 +43,9 @@ class Trainer:
             correct += pred.eq(target.view_as(pred)).sum().item()
             total += target.size(0)
 
-            if not self.config.SILENT:
-                if batch_idx % 10 == 0:
-                    print(f'Train Epoch: {epoch} [{batch_idx * len(data)}/{len(loader.dataset)} '
-                          f'({100. * batch_idx / len(loader):.0f}%)]\tLoss: {loss.item():.6f}')
+            if batch_idx % 10 == 0:
+                logger.info(f'Train Epoch: {epoch} [{batch_idx * len(data)}/{len(loader.dataset)} '
+                            f'({100. * batch_idx / len(loader):.0f}%)]\tLoss: {loss.item():.6f}')
 
         avg_loss = total_loss / len(loader)
         accuracy = correct / total
@@ -107,8 +109,7 @@ class Trainer:
             if self.profiler:
                 epoch_duration = self.profiler.stop(f"epoch_{epoch}")
                 # self.profiler.record_epoch(epoch, epoch_duration)
-                if not self.config.SILENT:
-                    print(f"Epoch {epoch} finished in {epoch_duration:.2f}s")
+                logger.info(f"Epoch {epoch} finished in {epoch_duration:.2f}s")
 
             # Checkpoint
             rate = self.config.CHECK_RATE
@@ -118,12 +119,12 @@ class Trainer:
             # Early Halt
             halt_cond = self.config.EARLY_HALT_CONDITION
             halt_thresh = self.config.EARLY_HALT_THRESHOLD
-            
+
             if halt_cond and halt_cond.value == 'Loss' and loss < halt_thresh:
-                print(f"Early halting: Loss {loss} < threshold {halt_thresh}")
+                logger.info(f"Early halting: Loss {loss} < threshold {halt_thresh}")
                 break
             elif halt_cond and halt_cond.value == 'Accuracy' and acc > halt_thresh:
-                print(f"Early halting: Accuracy {acc} > threshold {halt_thresh}")
+                logger.info(f"Early halting: Accuracy {acc} > threshold {halt_thresh}")
                 break
 
             # Eval while training
@@ -132,20 +133,19 @@ class Trainer:
 
         if self.profiler:
             train_duration = self.profiler.stop("training")
-            if not self.config.SILENT:
-                print(f"Total training time: {train_duration:.2f}s")
+            logger.info(f"Total training time: {train_duration:.2f}s")
 
         # Final save
         final_path = self.config.FINAL_OUTPUT_PATH
         try:
             os.makedirs(os.path.dirname(final_path), exist_ok=True) if os.path.dirname(final_path) else None
             torch.save(self.model.state_dict(), final_path)
-            print(f"Final model saved to {final_path}")
+            logger.info(f"Final model saved to {final_path}")
         except Exception as e:
-            print(f"Error saving final model to {final_path}: {e}")
+            logger.error(f"Error saving final model to {final_path}: {e}")
 
     def load_checkpoint(self, path):
-        print(f"Resuming from {path}")
+        logger.info(f"Resuming from {path}")
         self.model.load_state_dict(torch.load(path, map_location=self.device))
 
         # Check if metadata exists
