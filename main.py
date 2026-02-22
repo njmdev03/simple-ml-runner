@@ -20,7 +20,9 @@ def parse_args():
     # Meta Options
     parser.add_argument("--config", "-c", action="append", help="Config file(s) to load. Loaded as overrides in batch mode.")
     parser.add_argument("--jobs", "-j", action="append", help="Config file(s) to load as jobs in batch mode.")
-    parser.add_argument("--silent", action="store_true", help="Print less to console")
+    parser.add_argument("--log-level", choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], help="Logging level (default: INFO)")
+    parser.add_argument("--log-dir", help="Directory for log files")
+    parser.add_argument("--log-name", help="Filename for the log (supports ${date}, ${time})")
 
     # Behavior Flags
     parser.add_argument("--dont-train", action="store_true", help="Disable training process.")
@@ -82,16 +84,45 @@ def parse_args():
 
     return parser.parse_args()
 
-def setup_logging(is_silent: bool):
-    level = logging.WARNING if is_silent else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format='[%(asctime)s] %(levelname)s - %(message)s',
+def setup_logging(level: str = "INFO", log_file: str = None):
+    # Map string level to logging constants if needed, otherwise rely on basicConfig taking strings
+    # But since we might be reconfiguring, let's be explicit.
+    numeric_level = getattr(logging, level.upper(), None)
+    if not isinstance(numeric_level, int):
+        numeric_level = logging.INFO
+
+    root = logging.getLogger()
+
+    # Clear existing handlers
+    for handler in root.handlers[:]:
+        root.removeHandler(handler)
+
+    root.setLevel(numeric_level)
+
+    formatter = logging.Formatter(
+        fmt='[%(asctime)s] %(levelname)s - %(message)s',
         datefmt='%H:%M:%S'
     )
 
-def load_config(config_paths, args=None):
-    manager = ConfigManager()
+    # Console Handler
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    root.addHandler(console)
+
+    # File Handler
+    if log_file:
+        try:
+            log_path = os.path.abspath(log_file)
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            file_handler = logging.FileHandler(log_path)
+            file_handler.setFormatter(formatter)
+            root.addHandler(file_handler)
+            logger.debug(f"File logging initialized at {log_path}")
+        except Exception as e:
+            logger.error(f"Failed to initialize file logging: {e}")
+
+def load_config(config_paths, args=None, run_start_time=None):
+    manager = ConfigManager(run_start_time=run_start_time)
 
     config = manager.load_config_tree(config_paths)
     config = manager.apply_env_overrides(config)
@@ -146,16 +177,30 @@ def vis_samples(config, visualizer):
             )
 
 def main():
+    from datetime import datetime
+    run_start_time = datetime.now()
+
     # Parse the passed arguments
     args = parse_args()
 
-    # Setup logging
-    silent_mode = args.silent or os.environ.get('SILENT', '').lower() in ('true', '1', 'yes', 'on')
-    setup_logging(silent_mode)
+    # Initial setup (Console only, level from CLI or Env)
+    env_level = os.environ.get('ML_RUNNER_LOG_LEVEL', 'INFO').upper()
+    cli_level = args.log_level if args.log_level else env_level
+    setup_logging(level=cli_level)
 
     # Parse the passed configs
     config_paths = args.config if args.config else []
-    config = load_config(config_paths, args=args)
+    config = load_config(config_paths, args=args, run_start_time=run_start_time)
+
+    # Resolve the final config (this applies template resolution to log paths)
+    config = config.resolve()
+
+    # Re-setup logging with file output if configured
+    if config.LOG_NAME:
+        log_path = config.LOG_NAME
+        if config.LOG_DIR:
+            log_path = os.path.join(config.LOG_DIR, log_path)
+        setup_logging(level=config.LOG_LEVEL.value, log_file=log_path)
 
     # print()
     # print(f"CONFIG DUMP:")
@@ -167,18 +212,17 @@ def main():
             # Iterate over each job config file and run it
             if args.jobs:
                 for conf in args.jobs:
-                    job = load_config([conf, *config_paths], args=args)
+                    job_start_time = datetime.now()
+                    job = load_config([conf, *config_paths], args=args, run_start_time=job_start_time)
                     job = job.resolve()
                     run_job(job)
 
         case 'job':
             # Parse the configs as a single training and testing operation
-            config = config.resolve()
             run_job(config)
 
         case 'test':
             # Only test the model, ignore 'TRAIN' and 'TEST' option
-            config = config.resolve()
             config.TEST = True
             config.TRAIN = False
 
@@ -186,14 +230,12 @@ def main():
 
         case 'train':
             # Only train the model, ignore 'TRAIN' option, 'TEST' can still be used to bypass 'TEST_WHILE_TRAINING'
-            config = config.resolve()
             config.TRAIN = True
 
             run_job(config)
 
         case 'vis' | 'visualize':
             # Visualize the model, training process, accuracy, etc.
-            config = config.resolve()
             vis_types = config.VIS_TYPE
             if not isinstance(vis_types, list):
                 vis_types = [vis_types]
@@ -283,7 +325,6 @@ def main():
             # Make sure that no transforms are provided when running stats
             # After running stats, the values should be included in the config's
             # dataset transforms.
-            config = config.resolve()
             train_dataset = config.TRAIN_DATASET
 
             mean, std = compute_stats(train_dataset, batch_size=config.BATCH_SIZE)

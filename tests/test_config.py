@@ -11,7 +11,8 @@ class TestConfig(unittest.TestCase):
 
     def test_defaults(self):
         # basic defaults unwrap correctly via __getattribute__
-        self.assertFalse(self.cfg.SILENT)
+        from config.config import LogLevel
+        self.assertEqual(self.cfg.LOG_LEVEL, LogLevel.INFO)
         self.assertEqual(self.cfg.BATCH_SIZE, 32)
         self.assertEqual(self.cfg.VIS_FORMAT, 'png')
         # TRAIN_CRITERION remains the raw declared default (string) until resolved
@@ -40,23 +41,24 @@ class TestConfig(unittest.TestCase):
             self.assertFalse(isinstance(raw, DefaultValue))
 
     def test_merge_skips_defaultvalue_and_overwrites(self):
+        from config.config import LogLevel
         base = Config()
-        base.SILENT = False
+        base.LOG_LEVEL = LogLevel.INFO
 
         overlay = Config()
         # put a DefaultValue instance into overlay's dict to simulate a
         # default that should NOT overwrite
-        overlay.__dict__['SILENT'] = DefaultValue(True)
+        overlay.__dict__['LOG_LEVEL'] = DefaultValue(LogLevel.DEBUG)
 
         base.merge(overlay)
         # overlay's DefaultValue should not have overwritten base
-        self.assertFalse(base.SILENT)
+        self.assertEqual(base.LOG_LEVEL, LogLevel.INFO)
 
         # Now overlay with an explicit value should overwrite
         overlay2 = Config()
-        overlay2.SILENT = True
+        overlay2.LOG_LEVEL = LogLevel.WARNING
         base.merge(overlay2)
-        self.assertTrue(base.SILENT)
+        self.assertEqual(base.LOG_LEVEL, LogLevel.WARNING)
 
     def test_resolve_applies_testing_fallbacks_and_parses_criteria(self):
         cfg = Config()

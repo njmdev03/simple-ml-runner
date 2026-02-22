@@ -7,7 +7,7 @@ from config.config import Config
 class TestManagerOverrides(unittest.TestCase):
     def setUp(self):
         # ensure a clean env
-        self.env_keys = ['SILENT', 'TESTING_BATCH_SIZE']
+        self.env_keys = ['PROFILE', 'LOG_LEVEL', 'TESTING_BATCH_SIZE']
         for k in self.env_keys:
             os.environ.pop(k, None)
         self.mgr = ConfigManager()
@@ -18,10 +18,10 @@ class TestManagerOverrides(unittest.TestCase):
 
     def test_apply_env_overrides_boolean(self):
         cfg = Config()
-        self.assertFalse(cfg.SILENT)
-        os.environ['SILENT'] = 'true'
+        self.assertFalse(cfg.PROFILE)
+        os.environ['PROFILE'] = 'true'
         self.mgr.apply_env_overrides(cfg)
-        self.assertTrue(cfg.SILENT)
+        self.assertTrue(cfg.PROFILE)
 
     def test_apply_env_overrides_nonboolean(self):
         cfg = Config()
@@ -40,7 +40,7 @@ class TestManagerOverrides(unittest.TestCase):
             test_while_training=False,
             test_on_training_data=False,
             test_checkpoints=False,
-            silent=None,
+            log_level=None,
             profile=None,
             show=None,
             final_output_path='cli_out.pt',

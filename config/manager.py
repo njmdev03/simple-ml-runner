@@ -14,7 +14,9 @@ from .config import Config, ResolvedConfig
 logger = logging.getLogger(__name__)
 
 class ConfigManager:
-    def __init__(self):
+    def __init__(self, run_start_time=None):
+        from datetime import datetime
+        self.run_start_time = run_start_time or datetime.now()
         self.loaders = {
             '.json': JSONLoader(),
             '.yaml': YAMLLoader(),
@@ -74,9 +76,10 @@ class ConfigManager:
         # Merge tree_order (Bottom-up) into typed Config using the new
         # `Config.from_dict` + `merge` semantics so that per-file provenance
         # and DefaultValue handling are respected.
-        final_config = Config()
+        final_config = Config(_run_start_time=self.run_start_time)
         for cfg, base in tree_order:
             inst = Config.from_dict(cfg, base_path=base)
+            inst._run_start_time = self.run_start_time
             final_config.merge(inst)
 
         # Do not call `finalize()` here; resolved defaults are applied when
@@ -119,7 +122,7 @@ class ConfigManager:
         # Keys that use action='store_true'
         bool_flags = [
             'test_while_training', 'test_on_training_data',
-            'test_checkpoints', 'silent', 'profile', 'show'
+            'test_checkpoints', 'profile', 'show'
         ]
 
         overrides = {}

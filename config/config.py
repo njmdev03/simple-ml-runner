@@ -1,6 +1,9 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union, get_type_hints, get_origin, get_args
 import os
+import logging
+from datetime import datetime
+from string import Template
 from enum import Enum
 from pathlib import Path
 from torch import nn
@@ -53,6 +56,15 @@ class HaltCondition(Enum):
     TIME = "Time"
 
 
+class LogLevel(Enum):
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
+
+
+
 class Visualizations(Enum):
     ALL = "All"
     LOSS_ACC = "Loss and Accuracy"
@@ -76,7 +88,9 @@ class Metrics(Enum):
 
 class ResolvedConfig:
     # Meta
-    SILENT: bool
+    LOG_LEVEL: LogLevel
+    LOG_DIR: Optional[Path]
+    LOG_NAME: Optional[str]
     PROFILE: bool
     PROFILE_OUTPUT: Optional[Path]
 
@@ -136,7 +150,9 @@ class ResolvedConfig:
 @dataclass
 class Config:
     # Meta
-    SILENT: bool = DefaultValue.field(False)
+    LOG_LEVEL: LogLevel = DefaultValue.field(LogLevel.INFO)
+    LOG_DIR: Optional[Path] = DefaultValue.field(None)
+    LOG_NAME: Optional[str] = DefaultValue.field(None)
     PROFILE: bool = DefaultValue.field(False)
     PROFILE_OUTPUT: Optional[Path] = DefaultValue.field(None)
 
@@ -191,6 +207,7 @@ class Config:
     NUM_SAMPLES: int = DefaultValue.field(0)
     VIS_DATASETS: List[str] = DefaultValue.field(['testing'])
     VIS_METRICS: List[str] = DefaultValue.field(['all'])
+    _run_start_time: datetime = field(default_factory=datetime.now, repr=False)
 
     # Internal: keep track of which fields came from config files
     # _source: Dict[str, str] = field(default_factory=dict, repr=False)
@@ -388,6 +405,10 @@ class Config:
                 if val is None:
                     setattr(rc, name, None)
                 else:
+                    # Apply template resolution to paths
+                    if isinstance(val, (str, Path)):
+                        val = self._resolve_templates(str(val))
+
                     if isinstance(val, Path):
                         setattr(rc, name, val)
                     elif isinstance(val, (str, bytes, os.PathLike)):
@@ -428,7 +449,36 @@ class Config:
                 continue
 
             # Default: copy the value through (LazyObjects preserved)
+            # Also apply template resolution to strings that aren't Paths but might be templates
+            if isinstance(val, str) and name != 'CHECK_MODEL_NAME':
+                val = self._resolve_templates(val)
+
             setattr(rc, name, val)
+
+        # Apply testing fallbacks on the resolved config (do not change
+        # the original `Config` instance).
+        if getattr(rc, 'TESTING_BATCH_SIZE', None) is None:
+            rc.TESTING_BATCH_SIZE = rc.BATCH_SIZE
+
+        if getattr(rc, 'TESTING_CRITERION', None) is None:
+            rc.TESTING_CRITERION = [rc.TRAIN_CRITERION]
+
+        return rc
+
+    def _resolve_templates(self, val: str) -> str:
+        if '$' not in val:
+            return val
+        now = self._run_start_time
+        return Template(val).safe_substitute(
+            date=now.strftime("%Y-%m-%d"),
+            time=now.strftime("%H-%M-%S")
+        )
+
+        return Template(val).safe_substitute(
+            date=now.strftime("%Y-%m-%d"),
+            time=now.strftime("%H-%M-%S")
+        )
+
 
         # Apply testing fallbacks on the resolved config (do not change
         # the original `Config` instance).
