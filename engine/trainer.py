@@ -27,8 +27,6 @@ class Trainer:
     def train_epoch(self, loader, optimizer, epoch):
         self.model.train()
         total_loss = 0
-        correct = 0
-        total = 0
 
         for batch_idx, (data, target) in enumerate(loader):
             data, target = data.to(self.device, non_blocking=True), target.to(self.device, non_blocking=True)
@@ -39,19 +37,26 @@ class Trainer:
             optimizer.step()
 
             total_loss += loss.item()
-            pred = output.argmax(dim=1, keepdim=True)
-            correct += pred.eq(target.view_as(pred)).sum().item()
-            total += target.size(0)
+
+            # Update Informational Metrics
+            for metric in self.config.METRICS.values():
+                metric.update(output, target)
 
             if batch_idx % 10 == 0:
                 logger.info(f'Train Epoch: {epoch} [{batch_idx * len(data)}/{len(loader.dataset)} '
                             f'({100. * batch_idx / len(loader):.0f}%)]\tLoss: {loss.item():.6f}')
 
         avg_loss = total_loss / len(loader)
-        accuracy = correct / total
-        return avg_loss, accuracy
 
-    def save_checkpoint(self, epoch, avg_loss, accuracy):
+        # Compute and Reset Informational Metrics
+        results = {"Loss": avg_loss}
+        for name, metric in self.config.METRICS.items():
+            results[name] = metric.compute()
+            metric.reset()
+
+        return results
+
+    def save_checkpoint(self, epoch, metrics: dict):
         cp_dir = self.config.CHECK_MODEL_DIR
         if not os.path.exists(cp_dir):
             os.makedirs(cp_dir, exist_ok=True)
@@ -67,8 +72,7 @@ class Trainer:
             metadata = {
                 "checkpoint": cp_file_name,
                 "epoch": epoch,
-                "loss": avg_loss,
-                "accuracy": accuracy
+                **metrics
             }
             with open(meta_path, 'w') as f:
                 json.dump(metadata, f, indent=4)
@@ -106,7 +110,7 @@ class Trainer:
                 if self.profiler:
                     self.profiler.start(f"epoch_{epoch}")
 
-                loss, acc = self.train_epoch(train_loader, optimizer, epoch)
+                epoch_results = self.train_epoch(train_loader, optimizer, epoch)
 
                 if self.profiler:
                     epoch_duration = self.profiler.stop(f"epoch_{epoch}")
@@ -116,18 +120,20 @@ class Trainer:
                 # Checkpoint
                 rate = self.config.CHECK_RATE
                 if rate > 0 and epoch % rate == 0:
-                    self.save_checkpoint(epoch, loss, acc)
+                    self.save_checkpoint(epoch, epoch_results)
 
                 # Early Halt
                 halt_cond = self.config.EARLY_HALT_CONDITION
                 halt_thresh = self.config.EARLY_HALT_THRESHOLD
 
-                if halt_cond and halt_cond.value == 'Loss' and loss < halt_thresh:
-                    logger.info(f"Early halting: Loss {loss} < threshold {halt_thresh}")
-                    break
-                elif halt_cond and halt_cond.value == 'Accuracy' and acc > halt_thresh:
-                    logger.info(f"Early halting: Accuracy {acc} > threshold {halt_thresh}")
-                    break
+                if halt_cond and halt_cond in epoch_results:
+                    val = epoch_results[halt_cond]
+                    if halt_cond == 'Loss' and val < halt_thresh:
+                        logger.info(f"Early halting: Loss {val} < threshold {halt_thresh}")
+                        break
+                    elif val > halt_thresh: # For any other metric, assume higher is better
+                        logger.info(f"Early halting: {halt_cond} {val} > threshold {halt_thresh}")
+                        break
 
                 # Eval while training
                 if self.config.TEST_WHILE_TRAINING and eval_callback:

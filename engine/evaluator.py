@@ -14,8 +14,6 @@ class Evaluator:
 
         self.criteria = [(type(c).__name__, c) for c in self.config.TESTING_CRITERION]
 
-
-
     def evaluate(self, loader, name="Test", loader_name=None):
         # Start a profiling segment if profiler is provided
         if self.profiler:
@@ -27,33 +25,40 @@ class Evaluator:
             self.profiler.start(p_key)
 
         self.model.eval()
-        results = {}
+
+        # Initialize result containers
+        criterion_losses = {crit_name: 0.0 for crit_name, _ in self.criteria}
 
         with torch.no_grad():
-            for crit_name, criterion in self.criteria:
-                total_loss = 0
-                correct = 0
-                total = 0
+            for data, target in loader:
+                data, target = data.to(self.device), target.to(self.device)
+                output = self.model(data)
 
-                for data, target in loader:
-                    data, target = data.to(self.device), target.to(self.device)
-                    output = self.model(data)
-
+                # Update Losses
+                for crit_name, criterion in self.criteria:
                     if hasattr(criterion, '__call__'):
                         loss = criterion(output, target)
-                        total_loss += loss.item()
+                        criterion_losses[crit_name] += loss.item()
 
-                    pred = output.argmax(dim=1, keepdim=True)
-                    correct += pred.eq(target.view_as(pred)).sum().item()
-                    total += target.size(0)
+                # Update Informational Metrics
+                for metric in self.config.METRICS.values():
+                    metric.update(output, target)
 
-                avg_loss = total_loss / len(loader)
-                accuracy = correct / total
+        # Finalize results
+        results = {}
 
-                results[f"{crit_name}_loss"] = avg_loss
-                results[f"{crit_name}_accuracy"] = accuracy
+        # 1. Losses
+        for crit_name, total_loss in criterion_losses.items():
+            avg_loss = total_loss / len(loader)
+            results[f"{crit_name}_loss"] = avg_loss
+            # Log primary loss
+            logger.info(f'{name} set: {crit_name} Average loss: {avg_loss:.4f}')
 
-                logger.info(f'{name} set: {crit_name} Average loss: {avg_loss:.4f}, Accuracy: {correct}/{total} ({accuracy*100:.2f}%)')
+        # 2. Informational Metrics
+        for m_name, metric in self.config.METRICS.items():
+            results[m_name] = metric.compute()
+            metric.reset()
+            logger.info(f'{name} set: {m_name}: {results[m_name]:.4f}')
 
         if self.profiler:
             duration = self.profiler.stop(p_key)

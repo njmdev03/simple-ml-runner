@@ -53,6 +53,8 @@ def parse_args():
     parser.add_argument("--testing-criterion", action="append", help="List of testing criteria.")
     parser.add_argument("--test-checkpoints", action="store_true", help="Run tests on all checkpoints.")
     parser.add_argument("--save-tests", help="Path to save test results (extension determines format, CSV or XLSX supported).")
+    parser.add_argument("--task-type", choices=['classification', 'segmentation'], help="The type of ML task being performed.")
+    parser.add_argument("--eval-metrics", action="append", help="List of metrics to evaluate (e.g. Accuracy, Precision, Recall, F1).")
 
     # Checkpoint Options
     parser.add_argument("--checkpoint-frequency", type=int, dest="check_rate", help="Frequency in epochs to save checkpoints.")

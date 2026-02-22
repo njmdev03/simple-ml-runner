@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union, get_type_hints, get_origin, get_args
 import os
-import logging
 from datetime import datetime
 from string import Template
 from enum import Enum
@@ -81,6 +80,11 @@ class Datasets(Enum):
     TESTING = "Testing"
 
 
+class TaskType(Enum):
+    CLASSIFICATION = "classification"
+    SEGMENTATION = "segmentation"
+
+
 class Metrics(Enum):
     LOSS = "Loss"
     ACCURACY = "Accuracy"
@@ -146,6 +150,11 @@ class ResolvedConfig:
     VIS_DATASETS: List[Datasets]
     VIS_METRICS: List[Metrics]
 
+    # New Evaluation System
+    TASK_TYPE: TaskType
+    EVAL_METRICS: List[str]
+    METRICS: Dict[str, Any]  # Dictionary of instantiated metric objects
+
 
 @dataclass
 class Config:
@@ -197,6 +206,11 @@ class Config:
     TEST_WHILE_TRAINING: bool = DefaultValue.field(False)
     TEST_CHECKPOINTS: bool = DefaultValue.field(False)
     SAVE_TESTS: Optional[Path] = DefaultValue.field(None)
+
+    # New Evaluation System
+    TASK_TYPE: str = DefaultValue.field("classification")
+    EVAL_METRICS: List[str] = DefaultValue.field(["Accuracy"])
+    CUSTOM_METRICS: Dict[str, Any] = DefaultValue.field(None)
 
     # Visualization
     VIS_TYPE: List[str] = DefaultValue.field(['all'])
@@ -463,6 +477,32 @@ class Config:
         if getattr(rc, 'TESTING_CRITERION', None) is None:
             rc.TESTING_CRITERION = [rc.TRAIN_CRITERION]
 
+        # Finalize Metrics Setup
+        rc.TASK_TYPE = TaskType(self.TASK_TYPE.lower())
+        rc.EVAL_METRICS = self.EVAL_METRICS
+
+        # Instantiate Metrics
+        rc.METRICS = {}
+        if self.CUSTOM_METRICS:
+            rc.METRICS.update(self.CUSTOM_METRICS)
+        else:
+            from utils.metrics import Accuracy, Precision, Recall, F1Score, MeanIoU, PixelAccuracy
+
+            metric_map = {
+                "Accuracy": Accuracy,
+                "Precision": Precision,
+                "Recall": Recall,
+                "F1": F1Score,
+                "MeanIoU": MeanIoU,
+                "PixelAccuracy": PixelAccuracy
+            }
+
+            for m_name in rc.EVAL_METRICS:
+                if m_name in metric_map:
+                    rc.METRICS[m_name] = metric_map[m_name]()
+                else:
+                    logger.warning(f"Unknown metric '{m_name}' for task type '{rc.TASK_TYPE.value}'")
+
         return rc
 
     def _resolve_templates(self, val: str) -> str:
@@ -473,22 +513,6 @@ class Config:
             date=now.strftime("%Y-%m-%d"),
             time=now.strftime("%H-%M-%S")
         )
-
-        return Template(val).safe_substitute(
-            date=now.strftime("%Y-%m-%d"),
-            time=now.strftime("%H-%M-%S")
-        )
-
-
-        # Apply testing fallbacks on the resolved config (do not change
-        # the original `Config` instance).
-        if getattr(rc, 'TESTING_BATCH_SIZE', None) is None:
-            rc.TESTING_BATCH_SIZE = rc.BATCH_SIZE
-
-        if getattr(rc, 'TESTING_CRITERION', None) is None:
-            rc.TESTING_CRITERION = [rc.TRAIN_CRITERION]
-
-        return rc
 
     def get(self, key: str, default: Any = None):
         key_u = key.upper()
