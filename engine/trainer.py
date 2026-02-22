@@ -90,12 +90,13 @@ class Trainer:
         resume = self.config.RESUME
         if resume:
             if isinstance(resume, str) and os.path.isfile(resume):
-                self.load_checkpoint(resume)
+                latest_cp_path = resume
             else:
                 # Handle automatic resume from latest checkpoint
-                latest_cp = self._get_latest_checkpoint()
-                if latest_cp:
-                    start_epoch = self.load_checkpoint(latest_cp) + 1
+                latest_cp_path = self._get_latest_checkpoint()
+
+            if latest_cp_path:
+                start_epoch = self.load_checkpoint(latest_cp_path)
 
         if self.profiler:
             self.profiler.start("training")
@@ -132,19 +133,23 @@ class Trainer:
                 if self.config.TEST_WHILE_TRAINING and eval_callback:
                     eval_callback(epoch)
         except KeyboardInterrupt:
-            logger.warning("\nTraining interrupted by user! Saving recovery checkpoint...")
-            epoch = epoch if 'epoch' in locals() else start_epoch
-            # We save with a special flag in metadata
-            cp_path = self.save_checkpoint(epoch, 0.0, 0.0)
+            logger.warning("\nTraining interrupted by user!")
 
-            # Update metadata to mark as interrupted
-            meta_path = cp_path.replace(".pt", ".json")
-            if os.path.exists(meta_path):
-                with open(meta_path, 'r') as f:
-                    meta = json.load(f)
-                meta['interrupted'] = True
-                with open(meta_path, 'w') as f:
-                    json.dump(meta, f, indent=4)
+            # Block to save recovery checkpoint, removed for now due to training issues from not having
+            # data set resuming.
+            # logger.warning("\nTraining interrupted by user! Saving recovery checkpoint...")
+            # epoch = epoch if 'epoch' in locals() else start_epoch
+            # # We save with a special flag in metadata
+            # cp_path = self.save_checkpoint(epoch, 0.0, 0.0)
+
+            # # Update metadata to mark as interrupted
+            # meta_path = cp_path.replace(".pt", ".json")
+            # if os.path.exists(meta_path):
+            #     with open(meta_path, 'r') as f:
+            #         meta = json.load(f)
+            #     meta['interrupted'] = True
+            #     with open(meta_path, 'w') as f:
+            #         json.dump(meta, f, indent=4)
 
             raise
 
@@ -170,7 +175,7 @@ class Trainer:
         if os.path.exists(meta_path):
             with open(meta_path, 'r') as f:
                 meta = json.load(f)
-                return meta.get('epoch', 0)
+                return meta.get('epoch', 0) + (0 if meta.get('interrupted', False) else 1)
         return 0
 
     def _get_latest_checkpoint(self):
@@ -182,7 +187,6 @@ class Trainer:
             return None
 
         latest_meta = None
-        max_epoch = -1
         interrupted_meta = None
 
         for cp in checkpoints:
@@ -191,17 +195,19 @@ class Trainer:
 
                 # Check for interrupted flag first
                 if meta.get('interrupted'):
+                    print("Found interrupted checkpoint")
                     # If multiple interrupted (unlikely), take the highest epoch one
                     if not interrupted_meta or meta.get('epoch', -1) > interrupted_meta.get('epoch', -1):
                         interrupted_meta = meta
 
-                if meta.get('epoch', -1) > max_epoch:
-                    max_epoch = meta['epoch']
+                if not latest_meta or meta.get('epoch', -1) > latest_meta.get('epoch', -1):
+                    print(f"Found latest checkpoint {meta}")
                     latest_meta = meta
 
         # Prioritize interrupted checkpoint
         meta_to_use = interrupted_meta or latest_meta
 
         if meta_to_use:
+            print(f"Using checkpoint {meta_to_use}")
             return os.path.join(cp_dir, meta_to_use['checkpoint'])
         return None
