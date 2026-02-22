@@ -61,10 +61,10 @@ class Evaluator:
 
         return results
 
-    # skip_epochs option only applies if metadata is saved and available
-    def run_checkpoints(self, loader, loader_name = "", skip_epochs=None):
-        if skip_epochs is None:
-            skip_epochs = []
+    # skip_keys is a set of (epoch, dataset_name) tuples
+    def run_checkpoints(self, loader, loader_name = "", skip_keys=None):
+        if skip_keys is None:
+            skip_keys = set()
 
         cp_dir = self.config.CHECK_MODEL_DIR
         if not os.path.exists(cp_dir):
@@ -82,7 +82,7 @@ class Evaluator:
 
         for meta in meta_list:
             epoch = meta.get('epoch', 0)
-            if epoch in skip_epochs:
+            if (epoch, loader_name) in skip_keys:
                 continue
 
             cp_path = os.path.join(cp_dir, meta['checkpoint'])
@@ -95,6 +95,4 @@ class Evaluator:
             res['epoch'] = epoch
             res['source'] = meta['checkpoint']
             res['dataset'] = loader_name
-            all_results.append(res)
-
-        return all_results
+            yield res

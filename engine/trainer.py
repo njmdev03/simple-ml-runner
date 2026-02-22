@@ -100,36 +100,53 @@ class Trainer:
         if self.profiler:
             self.profiler.start("training")
 
-        for epoch in range(start_epoch, epochs + 1):
-            if self.profiler:
-                self.profiler.start(f"epoch_{epoch}")
+        try:
+            for epoch in range(start_epoch, epochs + 1):
+                if self.profiler:
+                    self.profiler.start(f"epoch_{epoch}")
 
-            loss, acc = self.train_epoch(train_loader, optimizer, epoch)
+                loss, acc = self.train_epoch(train_loader, optimizer, epoch)
 
-            if self.profiler:
-                epoch_duration = self.profiler.stop(f"epoch_{epoch}")
-                # self.profiler.record_epoch(epoch, epoch_duration)
-                logger.info(f"Epoch {epoch} finished in {epoch_duration:.2f}s")
+                if self.profiler:
+                    epoch_duration = self.profiler.stop(f"epoch_{epoch}")
+                    # self.profiler.record_epoch(epoch, epoch_duration)
+                    logger.info(f"Epoch {epoch} finished in {epoch_duration:.2f}s")
 
-            # Checkpoint
-            rate = self.config.CHECK_RATE
-            if rate > 0 and epoch % rate == 0:
-                self.save_checkpoint(epoch, loss, acc)
+                # Checkpoint
+                rate = self.config.CHECK_RATE
+                if rate > 0 and epoch % rate == 0:
+                    self.save_checkpoint(epoch, loss, acc)
 
-            # Early Halt
-            halt_cond = self.config.EARLY_HALT_CONDITION
-            halt_thresh = self.config.EARLY_HALT_THRESHOLD
+                # Early Halt
+                halt_cond = self.config.EARLY_HALT_CONDITION
+                halt_thresh = self.config.EARLY_HALT_THRESHOLD
 
-            if halt_cond and halt_cond.value == 'Loss' and loss < halt_thresh:
-                logger.info(f"Early halting: Loss {loss} < threshold {halt_thresh}")
-                break
-            elif halt_cond and halt_cond.value == 'Accuracy' and acc > halt_thresh:
-                logger.info(f"Early halting: Accuracy {acc} > threshold {halt_thresh}")
-                break
+                if halt_cond and halt_cond.value == 'Loss' and loss < halt_thresh:
+                    logger.info(f"Early halting: Loss {loss} < threshold {halt_thresh}")
+                    break
+                elif halt_cond and halt_cond.value == 'Accuracy' and acc > halt_thresh:
+                    logger.info(f"Early halting: Accuracy {acc} > threshold {halt_thresh}")
+                    break
 
-            # Eval while training
-            if self.config.TEST_WHILE_TRAINING and eval_callback:
-                eval_callback(epoch)
+                # Eval while training
+                if self.config.TEST_WHILE_TRAINING and eval_callback:
+                    eval_callback(epoch)
+        except KeyboardInterrupt:
+            logger.warning("\nTraining interrupted by user! Saving recovery checkpoint...")
+            epoch = epoch if 'epoch' in locals() else start_epoch
+            # We save with a special flag in metadata
+            cp_path = self.save_checkpoint(epoch, 0.0, 0.0)
+
+            # Update metadata to mark as interrupted
+            meta_path = cp_path.replace(".pt", ".json")
+            if os.path.exists(meta_path):
+                with open(meta_path, 'r') as f:
+                    meta = json.load(f)
+                meta['interrupted'] = True
+                with open(meta_path, 'w') as f:
+                    json.dump(meta, f, indent=4)
+
+            raise
 
         if self.profiler:
             train_duration = self.profiler.stop("training")
@@ -166,14 +183,25 @@ class Trainer:
 
         latest_meta = None
         max_epoch = -1
+        interrupted_meta = None
 
         for cp in checkpoints:
             with open(os.path.join(cp_dir, cp), 'r') as f:
                 meta = json.load(f)
+
+                # Check for interrupted flag first
+                if meta.get('interrupted'):
+                    # If multiple interrupted (unlikely), take the highest epoch one
+                    if not interrupted_meta or meta.get('epoch', -1) > interrupted_meta.get('epoch', -1):
+                        interrupted_meta = meta
+
                 if meta.get('epoch', -1) > max_epoch:
                     max_epoch = meta['epoch']
                     latest_meta = meta
 
-        if latest_meta:
-            return os.path.join(cp_dir, latest_meta['checkpoint'])
+        # Prioritize interrupted checkpoint
+        meta_to_use = interrupted_meta or latest_meta
+
+        if meta_to_use:
+            return os.path.join(cp_dir, meta_to_use['checkpoint'])
         return None

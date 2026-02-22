@@ -3,6 +3,7 @@ import os
 import logging
 from torch.utils.data import DataLoader
 from string import Template
+import pandas as pd
 
 from engine.trainer import Trainer
 from engine.evaluator import Evaluator
@@ -45,7 +46,7 @@ def run_job(config):
         model = model_obj().to(device)
     else:
         model = model_obj.to(device)
-        
+
     if profiler:
         model_dur = profiler.stop("model_loading")
         logger.info(f"Model loaded in {model_dur:.2f}s")
@@ -83,97 +84,134 @@ def run_job(config):
         ds_dur = profiler.stop("dataset_loading")
         logger.info(f"Datasets loaded in {ds_dur:.2f}s")
 
-    # 5. Training
+    # 5. Reporting Logic
     all_test_results = []
-    tested_epochs = set()
-
-    if config.TRAIN and train_dataset:
-        trainer = Trainer(config, model, device, profiler=profiler)
-
-        # Callback to run tests each epoch
-        def train_eval_cb(epoch):
-            # Test on training data
-            if train_eval_loader:
-                res = evaluator.evaluate(train_eval_loader, name=f"Epoch {epoch} Eval on Training")
-                res['epoch'] = epoch
-                cp_name_template = config.CHECK_MODEL_NAME
-                res['source'] = Template(cp_name_template).substitute(epoch=epoch) + ".pt"
-                res['dataset'] = "Training"
-                all_test_results.append(res)
-
-            # Test on testing data
-            if test_loader:
-                res = evaluator.evaluate(test_loader, name=f"Epoch {epoch} Eval on Testing")
-                res['epoch'] = epoch
-                cp_name_template = config.CHECK_MODEL_NAME
-                res['source'] = Template(cp_name_template).substitute(epoch=epoch) + ".pt"
-                res['dataset'] = "Testing"
-                all_test_results.append(res)
-
-            if train_eval_loader or test_loader:
-                tested_epochs.add(epoch)
-
-        trainer.run(train_loader, eval_callback=train_eval_cb if config.TEST_WHILE_TRAINING else None)
-
-    # 6. Testing
-    if config.TEST:
-        if profiler: profiler.start("testing")
-
-        # evaluator = Evaluator(config, model, device)
-
-        # if test_dataset:
-        #     test_loader = DataLoader(test_dataset, batch_size=config.get('TESTING_BATCH_SIZE') or config.get('BATCH_SIZE', 32))
-
-        # if config.get('TEST_ON_TRAINING_DATA', False) and train_dataset:
-        #     train_eval_loader = DataLoader(train_dataset, batch_size=config.get('BATCH_SIZE', 32))
-
-        logger.info("--- Begin Evaluation ---")
-
-        if config.TEST_CHECKPOINTS:
-            if config.TEST_ON_TRAINING_DATA and train_eval_loader:
-                checkpoint_results = evaluator.run_checkpoints(train_eval_loader, loader_name="Training", skip_epochs=tested_epochs)
-                all_test_results.extend(checkpoint_results)
-
-            checkpoint_results = evaluator.run_checkpoints(test_loader, loader_name="Testing", skip_epochs=tested_epochs)
-            all_test_results.extend(checkpoint_results)
-
-        logger.info("--- Final Model Evaluation ---")
-
-        final_path = config.FINAL_OUTPUT_PATH
-        if os.path.exists(final_path):
-            model.load_state_dict(torch.load(final_path, map_location=device))
-
-            if config.TEST_ON_TRAINING_DATA and train_eval_loader:
-                train_res = evaluator.evaluate(train_eval_loader, name="Training Data Final")
-                train_res['epoch'] = config.EPOCHS
-                train_res['source'] = final_path
-                train_res['dataset'] = "Training"
-                all_test_results.append(train_res)
-
-            final_res = evaluator.evaluate(test_loader, name="Test Data Final")
-            final_res['epoch'] = config.EPOCHS
-            final_res['source'] = final_path
-            final_res['dataset'] = "Testing"
-            all_test_results.append(final_res)
-
-        if profiler:
-            test_duration = profiler.stop("testing")
-            logger.info(f"Total testing time: {test_duration:.2f}s")
-
-
-    # 7. Export
-    if profiler:
-        total_duration = profiler.stop("total")
-        logger.info(f"Total process time: {total_duration:.2f}s")
-
-
-        # Resolve Profile Output Path
-        profile_path = config.PROFILE_OUTPUT
-
-        if profile_path:
-            Exporter.export([profiler.get_report()], profile_path)
-            logger.info(f"Profiling results saved to {profile_path}")
+    skip_keys = set() # (epoch, dataset_name)
 
     save_path = config.SAVE_TESTS
-    if save_path and all_test_results:
-        Exporter.export(all_test_results, save_path)
+    if save_path and os.path.exists(save_path):
+        try:
+            ext = os.path.splitext(save_path)[1].lower()
+            if ext == '.csv':
+                old_df = pd.read_csv(save_path)
+            elif ext in ['.xlsx', '.xls']:
+                old_df = pd.read_excel(save_path)
+            else:
+                old_df = None
+
+            if old_df is not None:
+                all_test_results = old_df.to_dict('records')
+                # Explicitly populate skip_keys from old results
+                for rec in all_test_results:
+                    epoch = rec.get('epoch')
+                    dataset = rec.get('dataset')
+                    if epoch is not None and dataset:
+                        skip_keys.add((int(epoch), str(dataset)))
+                logger.info(f"Loaded {len(all_test_results)} existing test results. Work will be resumed.")
+        except Exception as e:
+            logger.warning(f"Failed to load existing results from {save_path}: {e}")
+
+    # 6. Training
+    try:
+        if config.TRAIN and train_dataset:
+            trainer = Trainer(config, model, device, profiler=profiler)
+
+            def train_eval_cb(epoch):
+                # Test on training data
+                if train_eval_loader:
+                    if (epoch, "Training") in skip_keys:
+                        return
+                    res = evaluator.evaluate(train_eval_loader, name=f"Epoch {epoch} Eval on Training")
+                    res['epoch'] = epoch
+                    cp_name_template = config.CHECK_MODEL_NAME
+                    res['source'] = Template(cp_name_template).substitute(epoch=epoch) + ".pt"
+                    res['dataset'] = "Training"
+                    all_test_results.append(res)
+                    skip_keys.add((epoch, "Training"))
+
+                # Test on testing data
+                if test_loader:
+                    if (epoch, "Testing") in skip_keys:
+                        return
+                    res = evaluator.evaluate(test_loader, name=f"Epoch {epoch} Eval on Testing")
+                    res['epoch'] = epoch
+                    cp_name_template = config.CHECK_MODEL_NAME
+                    res['source'] = Template(cp_name_template).substitute(epoch=epoch) + ".pt"
+                    res['dataset'] = "Testing"
+                    all_test_results.append(res)
+                    skip_keys.add((epoch, "Testing"))
+
+            trainer.run(train_loader, eval_callback=train_eval_cb if config.TEST_WHILE_TRAINING else None)
+
+        # 7. Testing
+        if config.TEST:
+            if profiler: profiler.start("testing")
+
+            if not config.TRAIN:
+                evaluator = Evaluator(config, model, device, profiler=profiler)
+
+            logger.info("--- Begin Evaluation ---")
+
+            if config.TEST_CHECKPOINTS:
+                if config.TEST_ON_TRAINING_DATA and train_eval_loader:
+                    for res in evaluator.run_checkpoints(train_eval_loader, loader_name="Training", skip_keys=skip_keys):
+                        all_test_results.append(res)
+                        skip_keys.add((res['epoch'], "Training"))
+
+                for res in evaluator.run_checkpoints(test_loader, loader_name="Testing", skip_keys=skip_keys):
+                    all_test_results.append(res)
+                    skip_keys.add((res['epoch'], "Testing"))
+
+            logger.info("--- Final Model Evaluation ---")
+
+            final_path = config.FINAL_OUTPUT_PATH
+            if os.path.exists(final_path):
+                # Final check for skip
+                final_epoch = config.EPOCHS
+
+                # Logic for skipping if already tested
+                need_to_load = False
+                if (final_epoch, "Testing") not in skip_keys:
+                    need_to_load = True
+                if config.TEST_ON_TRAINING_DATA and train_eval_loader and (final_epoch, "Training") not in skip_keys:
+                    need_to_load = True
+
+                if need_to_load:
+                    model.load_state_dict(torch.load(final_path, map_location=device))
+
+                    if config.TEST_ON_TRAINING_DATA and train_eval_loader and (final_epoch, "Training") not in skip_keys:
+                        train_res = evaluator.evaluate(train_eval_loader, name="Training Data Final")
+                        train_res['epoch'] = final_epoch
+                        train_res['source'] = final_path
+                        train_res['dataset'] = "Training"
+                        all_test_results.append(train_res)
+                        skip_keys.add((final_epoch, "Training"))
+
+                    if (final_epoch, "Testing") not in skip_keys:
+                        final_res = evaluator.evaluate(test_loader, name="Test Data Final")
+                        final_res['epoch'] = final_epoch
+                        final_res['source'] = final_path
+                        final_res['dataset'] = "Testing"
+                        all_test_results.append(final_res)
+                        skip_keys.add((final_epoch, "Testing"))
+
+            if profiler:
+                test_duration = profiler.stop("testing")
+                logger.info(f"Total testing time: {test_duration:.2f}s")
+    except KeyboardInterrupt:
+        logger.warning("Interrupted by user. Saving partial results...")
+    finally:
+        # 8. Export
+        if profiler:
+            if profiler.is_active("total"):
+                total_duration = profiler.stop("total")
+                logger.info(f"Total process time: {total_duration:.2f}s")
+
+            # Resolve Profile Output Path
+            profile_path = config.PROFILE_OUTPUT
+            if profile_path:
+                Exporter.export([profiler.get_report()], profile_path)
+                logger.info(f"Profiling results saved to {profile_path}")
+
+        if save_path and all_test_results:
+            Exporter.export(all_test_results, save_path)

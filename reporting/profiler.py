@@ -11,8 +11,9 @@ class Profiler:
 
     def start(self, name: str = "total"):
         self.started[name] = time.perf_counter()
-        # if name == "total":
-        #     self.start_time = self.phases[name]
+
+    def is_active(self, name: str) -> bool:
+        return name in self.started and name not in self.durations
 
     def stop(self, name: str = "total"):
         start = self.started.get(name)
