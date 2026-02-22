@@ -26,15 +26,34 @@ def run_job(config):
     # Setup Profiler
     profiler = None
     if config.PROFILE:
-        profiler = Profiler()
-        profiler.start("total")
+        existing_profile = {}
+        profile_path = config.PROFILE_OUTPUT
+        if profile_path and os.path.exists(profile_path):
+            try:
+                ext = os.path.splitext(profile_path)[1].lower()
+                if ext == '.csv':
+                    old_df = pd.read_csv(profile_path)
+                elif ext in ['.xlsx', '.xls']:
+                    old_df = pd.read_excel(profile_path)
+                else:
+                    old_df = None
+
+                if old_df is not None and not old_df.empty:
+                    existing_profile = old_df.to_dict('records')[0]
+                    logger.info(f"Loaded existing profile data for resumed run.")
+            except Exception as e:
+                logger.warning(f"Failed to load existing profile: {e}")
+
+        profiler = Profiler(existing_durations=existing_profile)
+        profiler.resume("total")
 
     # 2. Setup Device
     device = get_device(config.DEVICES)
     logger.info(f"Using device: {device}")
 
     # 3. Load Model
-    if profiler: profiler.start("model_loading")
+    model_load_key = "model_loading"
+    if profiler: model_load_key = profiler.start("model_loading", unique=True)
     model_val = config.MODEL
     if not model_val:
         logger.error(f"Error: MODEL not specified in config.")
@@ -48,11 +67,12 @@ def run_job(config):
         model = model_obj.to(device)
 
     if profiler:
-        model_dur = profiler.stop("model_loading")
+        model_dur = profiler.stop(model_load_key)
         logger.info(f"Model loaded in {model_dur:.2f}s")
 
     # 4. Load Datasets
-    if profiler: profiler.start("dataset_loading")
+    data_load_key = "dataset_loading"
+    if profiler: data_load_key = profiler.start("dataset_loading", unique=True)
 
     # Conditionally load necessary datasets
     train_dataset = None
@@ -81,7 +101,7 @@ def run_job(config):
             train_eval_loader = DataLoader(train_dataset, batch_size=config.TESTING_BATCH_SIZE)
 
     if profiler:
-        ds_dur = profiler.stop("dataset_loading")
+        ds_dur = profiler.stop(data_load_key)
         logger.info(f"Datasets loaded in {ds_dur:.2f}s")
 
     # 5. Reporting Logic
@@ -117,29 +137,37 @@ def run_job(config):
             trainer = Trainer(config, model, device, profiler=profiler)
 
             def train_eval_cb(epoch):
+                if profiler:
+                    profiler.pause("training")
+                    profiler.resume("testing")
+
                 # Test on training data
                 if train_eval_loader:
                     if (epoch, "Training") in skip_keys:
                         return
-                    res = evaluator.evaluate(train_eval_loader, name=f"Epoch {epoch} Eval on Training")
-                    res['epoch'] = epoch
-                    cp_name_template = config.CHECK_MODEL_NAME
-                    res['source'] = Template(cp_name_template).substitute(epoch=epoch) + ".pt"
-                    res['dataset'] = "Training"
-                    all_test_results.append(res)
-                    skip_keys.add((epoch, "Training"))
+                        res = evaluator.evaluate(train_eval_loader, name=f"Epoch {epoch} Eval on Training")
+                        res['epoch'] = epoch
+                        cp_name_template = config.CHECK_MODEL_NAME
+                        res['source'] = Template(cp_name_template).substitute(epoch=epoch) + ".pt"
+                        res['dataset'] = "Training"
+                        all_test_results.append(res)
+                        skip_keys.add((epoch, "Training"))
 
                 # Test on testing data
                 if test_loader:
                     if (epoch, "Testing") in skip_keys:
                         return
-                    res = evaluator.evaluate(test_loader, name=f"Epoch {epoch} Eval on Testing")
-                    res['epoch'] = epoch
-                    cp_name_template = config.CHECK_MODEL_NAME
-                    res['source'] = Template(cp_name_template).substitute(epoch=epoch) + ".pt"
-                    res['dataset'] = "Testing"
-                    all_test_results.append(res)
-                    skip_keys.add((epoch, "Testing"))
+                        res = evaluator.evaluate(test_loader, name=f"Epoch {epoch} Eval on Testing")
+                        res['epoch'] = epoch
+                        cp_name_template = config.CHECK_MODEL_NAME
+                        res['source'] = Template(cp_name_template).substitute(epoch=epoch) + ".pt"
+                        res['dataset'] = "Testing"
+                        all_test_results.append(res)
+                        skip_keys.add((epoch, "Testing"))
+
+                if profiler:
+                    profiler.pause("testing")
+                    profiler.resume("training")
 
             trainer.run(train_loader, eval_callback=train_eval_cb if config.TEST_WHILE_TRAINING else None)
 

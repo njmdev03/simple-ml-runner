@@ -99,7 +99,7 @@ class Trainer:
                 start_epoch = self.load_checkpoint(latest_cp_path)
 
         if self.profiler:
-            self.profiler.start("training")
+            self.profiler.resume("training")
 
         try:
             for epoch in range(start_epoch, epochs + 1):
@@ -154,7 +154,7 @@ class Trainer:
             raise
 
         if self.profiler:
-            train_duration = self.profiler.stop("training")
+            train_duration = self.profiler.pause("training")
             logger.info(f"Total training time: {train_duration:.2f}s")
 
         # Final save
