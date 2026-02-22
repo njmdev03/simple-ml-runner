@@ -85,11 +85,6 @@ class TaskType(Enum):
     SEGMENTATION = "segmentation"
 
 
-class Metrics(Enum):
-    LOSS = "Loss"
-    ACCURACY = "Accuracy"
-
-
 class ResolvedConfig:
     # Meta
     LOG_LEVEL: LogLevel
@@ -129,7 +124,7 @@ class ResolvedConfig:
     RESUME: Union[bool, Path]
 
     # Early Halt
-    EARLY_HALT_CONDITION: Optional[HaltCondition]
+    EARLY_HALT_CONDITION: Optional[str]
     EARLY_HALT_THRESHOLD: float
 
     # Testing & Evaluation
@@ -148,7 +143,7 @@ class ResolvedConfig:
     SHOW: bool
     NUM_SAMPLES: int
     VIS_DATASETS: List[Datasets]
-    VIS_METRICS: List[Metrics]
+    VIS_METRICS: List[str]
 
     # New Evaluation System
     TASK_TYPE: TaskType

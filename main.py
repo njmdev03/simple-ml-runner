@@ -264,12 +264,18 @@ def main():
                 else:
                     datasets_filter.append(str(d).capitalize())
 
+            if 'All' in datasets_filter:
+                datasets_filter = ['Training', 'Testing']
+
             metrics_filter = []
             for m in vis_metrics:
                 if hasattr(m, 'value'):
                     metrics_filter.append(m.value.lower())
                 else:
                     metrics_filter.append(str(m).lower())
+
+            if 'all' in metrics_filter:
+                metrics_filter = ['loss'] + [m.lower() for m in config.EVAL_METRICS]
 
             results_df = None
             profile_df = None

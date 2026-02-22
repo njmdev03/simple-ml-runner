@@ -78,21 +78,26 @@ class Visualizer:
         else:
             fig, ax1 = ax.figure, ax
 
-        # Get loss and accuracy columns
+        # Get loss and metric columns
         loss_cols = [c for c in results_df.columns if 'loss' in c.lower()]
-        acc_cols = [c for c in results_df.columns if 'accuracy' in c.lower()]
+        
+        metric_cols = []
+        for c in results_df.columns:
+            if c.lower() in ('epoch', 'dataset', 'source') or 'loss' in c.lower():
+                continue
+            if metrics is None or c.lower() in [m.lower() for m in metrics]:
+                metric_cols.append(c)
 
-        show_loss = 'loss' in metrics and loss_cols
-        show_accuracy = 'accuracy' in metrics and acc_cols
+        show_loss = loss_cols and (metrics is None or 'loss' in [m.lower() for m in metrics])
+        show_metric = bool(metric_cols)
 
-        if not show_loss and not show_accuracy:
+        if not show_loss and not show_metric:
             logger.warning("No matching metrics found in results.")
             if save_plot:
                 plt.close(fig)
             return
 
         loss_col = loss_cols[0] if loss_cols else None
-        acc_col = acc_cols[0] if acc_cols else None
 
         # Plot loss on left y-axis
         ax1.set_xlabel('Epoch', fontsize=12)
@@ -109,34 +114,35 @@ class Visualizer:
         ax1.tick_params(axis='y', labelcolor='#e74c3c' if show_loss else 'black')
         self._apply_style(ax1)
 
-        # Plot accuracy on right y-axis
-        if show_accuracy:
+        # Plot metrics on right y-axis
+        if show_metric:
             ax2 = ax1.twinx()
-            ax2.set_ylabel('Accuracy', fontsize=12, color='#9b59b6')
+            ax2.set_ylabel('Metrics', fontsize=12, color='#9b59b6')
             self._set_accessible_cycler(ax2)
 
-            for dataset_name in datasets:
-                subset = results_df[results_df['dataset'] == dataset_name]
-                if not subset.empty:
-                    ax2.plot(subset['epoch'], subset[acc_col],
-                            linewidth=2, label=f'{dataset_name} Accuracy')
+            for acc_col in metric_cols:
+                for dataset_name in datasets:
+                    subset = results_df[results_df['dataset'] == dataset_name]
+                    if not subset.empty:
+                        ax2.plot(subset['epoch'], subset[acc_col],
+                                linewidth=2, label=f'{dataset_name} {acc_col}')
 
             ax2.tick_params(axis='y', labelcolor='#9b59b6')
             ax2.set_ylim(0, 1.05)
 
         # Combined legend
         lines1, labels1 = ax1.get_legend_handles_labels()
-        if show_accuracy:
+        if show_metric:
             lines2, labels2 = ax2.get_legend_handles_labels()
             ax1.legend(lines1 + lines2, labels1 + labels2, loc='center right')
         else:
             ax1.legend(lines1, labels1, loc='center right')
 
-        fig.suptitle('Loss & Accuracy Over Epochs', fontsize=14, fontweight='bold')
+        fig.suptitle('Loss & Metrics Over Epochs', fontsize=14, fontweight='bold')
         fig.tight_layout()
 
         if save_plot:
-            self._save_or_show(fig, 'loss_accuracy_combined', show)
+            self._save_or_show(fig, 'loss_metrics_combined', show)
 
     def plot_loss(self, results_df: pd.DataFrame, show: bool = False,
                   datasets: List[str] = None, ax: plt.Axes = None):
@@ -182,9 +188,9 @@ class Visualizer:
             fig.tight_layout()
             self._save_or_show(fig, 'loss', show)
 
-    def plot_accuracy(self, results_df: pd.DataFrame, show: bool = False,
-                      datasets: List[str] = None, ax: plt.Axes = None):
-        """Accuracy over epochs with maximized style variety via property cyclers.
+    def plot_metrics(self, results_df: pd.DataFrame, show: bool = False,
+                      datasets: List[str] = None, metrics: List[str] = None, ax: plt.Axes = None):
+        """Metrics over epochs with maximized style variety via property cyclers.
 
         Args:
             datasets: Filter by 'Training', 'Testing', or both. None = all.
@@ -199,33 +205,39 @@ class Visualizer:
         else:
             fig = ax.figure
 
-        acc_cols = [c for c in results_df.columns if 'accuracy' in c.lower()]
-        if not acc_cols:
-            logger.warning("No accuracy columns found.")
+        metric_cols = []
+        for c in results_df.columns:
+            if c.lower() in ('epoch', 'dataset', 'source') or 'loss' in c.lower():
+                continue
+            if metrics is None or c.lower() in [m.lower() for m in metrics]:
+                metric_cols.append(c)
+
+        if not metric_cols:
+            logger.warning("No metric columns found.")
             if save_plot:
                 plt.close(fig)
             return
 
         self._set_accessible_cycler(ax)
 
-        for acc_col in acc_cols:
+        for col in metric_cols:
             for dataset_name in datasets:
                 subset = results_df[results_df['dataset'] == dataset_name]
                 if not subset.empty:
                     label_prefix = 'Train' if dataset_name == 'Training' else 'Test'
-                    ax.plot(subset['epoch'], subset[acc_col],
-                           linewidth=2, markersize=6, label=f'{label_prefix}: {acc_col}')
+                    ax.plot(subset['epoch'], subset[col],
+                           linewidth=2, markersize=6, label=f'{label_prefix}: {col}')
 
         ax.set_xlabel('Epoch', fontsize=12)
-        ax.set_ylabel('Accuracy', fontsize=12)
+        ax.set_ylabel('Metrics', fontsize=12)
         ax.set_ylim(0, 1.05)
-        ax.set_title('Accuracy Over Epochs', fontsize=14, fontweight='bold')
+        ax.set_title('Metrics Over Epochs', fontsize=14, fontweight='bold')
         ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         self._apply_style(ax)
 
         fig.tight_layout()
         if save_plot:
-            self._save_or_show(fig, 'accuracy', show)
+            self._save_or_show(fig, 'metrics', show)
 
     # =========================================================================
     # Profiler CSV Visualizations
@@ -515,10 +527,10 @@ class Visualizer:
 
         if results_df is not None:
             plots.append(('loss_acc', lambda ax: self.plot_loss_accuracy(results_df, False, datasets, metrics, ax)))
-            if metrics is None or 'loss' in metrics:
+            if metrics is None or 'loss' in [m.lower() for m in metrics]:
                 plots.append(('loss', lambda ax: self.plot_loss(results_df, False, datasets, ax)))
-            if metrics is None or 'accuracy' in metrics:
-                plots.append(('acc', lambda ax: self.plot_accuracy(results_df, False, datasets, ax)))
+            if metrics is None or any(m.lower() != 'loss' for m in metrics):
+                plots.append(('metrics', lambda ax: self.plot_metrics(results_df, False, datasets, metrics, ax)))
 
         if profile_df is not None:
              plots.append(('duration', lambda ax: self.plot_duration_table(profile_df, False, ax)))
@@ -581,10 +593,10 @@ class Visualizer:
 
         if results_df is not None:
             self.plot_loss_accuracy(results_df, show, datasets=datasets, metrics=metrics)
-            if metrics is None or 'loss' in metrics:
+            if metrics is None or 'loss' in [m.lower() for m in metrics]:
                 self.plot_loss(results_df, show, datasets=datasets)
-            if metrics is None or 'accuracy' in metrics:
-                self.plot_accuracy(results_df, show, datasets=datasets)
+            if metrics is None or any(m.lower() != 'loss' for m in metrics):
+                self.plot_metrics(results_df, show, datasets=datasets, metrics=metrics)
 
         if profile_df is not None:
             self.plot_duration_table(profile_df, show)
