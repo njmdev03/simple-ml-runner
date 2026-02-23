@@ -172,7 +172,9 @@ def vis_samples(config, visualizer):
 
         # Load test dataset
         test_dataset = config.TEST_DATASET
-        if test_dataset:
+        task_type = getattr(config, 'TASK_TYPE', None)
+        task_is_classification = (task_type is None or str(task_type).lower() in ('classification', 'tasktype.classification'))
+        if test_dataset and num_samples > 0 and task_is_classification:
             visualizer.plot_sample_predictions(
                 model, test_dataset, device,
                 num_samples=num_samples, show=show_plots
