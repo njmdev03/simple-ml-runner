@@ -84,8 +84,10 @@ def run_job(config):
         test_dataset = config.TEST_DATASET
 
     # Create Training Loader
+    collate_fn = getattr(config, 'COLLATE_FN', None)
     if config.TRAIN and train_dataset:
-        train_loader = DataLoader(train_dataset, batch_size=config.BATCH_SIZE, shuffle=True)
+        train_loader = DataLoader(train_dataset, batch_size=config.BATCH_SIZE,
+                                  shuffle=True, collate_fn=collate_fn)
 
     # Create Testing Loaders
     # Testing loader for test dataset
@@ -94,11 +96,13 @@ def run_job(config):
         evaluator = Evaluator(config, model, device, profiler=profiler)
 
         if test_dataset:
-            test_loader = DataLoader(test_dataset, batch_size=config.TESTING_BATCH_SIZE)
+            test_loader = DataLoader(test_dataset, batch_size=config.TESTING_BATCH_SIZE,
+                                     collate_fn=collate_fn)
 
         # Testing loader for training dataset
         if config.TEST_ON_TRAINING_DATA and train_dataset:
-            train_eval_loader = DataLoader(train_dataset, batch_size=config.TESTING_BATCH_SIZE)
+            train_eval_loader = DataLoader(train_dataset, batch_size=config.TESTING_BATCH_SIZE,
+                                           collate_fn=collate_fn)
 
     if profiler:
         ds_dur = profiler.stop(data_load_key)
@@ -136,40 +140,45 @@ def run_job(config):
         if config.TRAIN and train_dataset:
             trainer = Trainer(config, model, device, profiler=profiler)
 
-            def train_eval_cb(epoch):
+            def train_eval_cb(epoch, epoch_results=None):
                 if profiler:
                     profiler.pause("training")
                     profiler.resume("testing")
 
-                # Test on training data
-                if train_eval_loader:
-                    if (epoch, "Training") in skip_keys:
-                        return
-                        res = evaluator.evaluate(train_eval_loader, name=f"Epoch {epoch} Eval on Training")
-                        res['epoch'] = epoch
-                        cp_name_template = config.CHECK_MODEL_NAME
-                        res['source'] = Template(cp_name_template).substitute(epoch=epoch) + ".pt"
-                        res['dataset'] = "Training"
-                        all_test_results.append(res)
-                        skip_keys.add((epoch, "Training"))
+                cp_name_template = config.CHECK_MODEL_NAME
+                cp_source = Template(cp_name_template).substitute(epoch=epoch) + ".pt"
 
-                # Test on testing data
-                if test_loader:
-                    if (epoch, "Testing") in skip_keys:
-                        return
-                        res = evaluator.evaluate(test_loader, name=f"Epoch {epoch} Eval on Testing")
-                        res['epoch'] = epoch
-                        cp_name_template = config.CHECK_MODEL_NAME
-                        res['source'] = Template(cp_name_template).substitute(epoch=epoch) + ".pt"
-                        res['dataset'] = "Testing"
-                        all_test_results.append(res)
-                        skip_keys.add((epoch, "Testing"))
+                # Record training-phase loss/metrics from the trainer
+                if epoch_results:
+                    train_row = {**epoch_results, 'epoch': epoch, 'source': cp_source, 'dataset': 'Training (live)'}
+                    all_test_results.append(train_row)
+
+                if config.TEST_WHILE_TRAINING:
+                    # Test on training data
+                    if train_eval_loader:
+                        if (epoch, "Training") not in skip_keys:
+                            res = evaluator.evaluate(train_eval_loader, name=f"Epoch {epoch} Eval on Training")
+                            res['epoch'] = epoch
+                            res['source'] = cp_source
+                            res['dataset'] = "Training"
+                            all_test_results.append(res)
+                            skip_keys.add((epoch, "Training"))
+
+                    # Test on testing data
+                    if test_loader:
+                        if (epoch, "Testing") not in skip_keys:
+                            res = evaluator.evaluate(test_loader, name=f"Epoch {epoch} Eval on Testing")
+                            res['epoch'] = epoch
+                            res['source'] = cp_source
+                            res['dataset'] = "Testing"
+                            all_test_results.append(res)
+                            skip_keys.add((epoch, "Testing"))
 
                 if profiler:
                     profiler.pause("testing")
                     profiler.resume("training")
 
-            trainer.run(train_loader, eval_callback=train_eval_cb if config.TEST_WHILE_TRAINING else None)
+            trainer.run(train_loader, eval_callback=train_eval_cb)
 
         # 7. Testing
         if config.TEST:

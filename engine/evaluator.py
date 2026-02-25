@@ -12,7 +12,7 @@ class Evaluator:
         self.device = device
         self.profiler = profiler
 
-        self.criteria = [(type(c).__name__, c) for c in self.config.TESTING_CRITERION]
+        self.criteria = [(type(c).__name__, c) for c in self.config.TESTING_CRITERION if c is not None]
 
     def evaluate(self, loader, name="Test", loader_name=None):
         # Start a profiling segment if profiler is provided
@@ -26,39 +26,64 @@ class Evaluator:
 
         self.model.eval()
 
+        eval_step = self.config.EVAL_STEP_FN
+
         # Initialize result containers
         criterion_losses = {crit_name: 0.0 for crit_name, _ in self.criteria}
 
         with torch.no_grad():
-            for data, target in loader:
-                data, target = data.to(self.device), target.to(self.device)
-                output = self.model(data)
+            for batch in loader:
+                if eval_step is not None:
+                    # Custom eval step: (model, batch, device) -> (outputs, targets, loss_dict | None)
+                    res = eval_step(self.model, batch, self.device)
+                    outputs, targets = res[0], res[1]
+                    step_losses = res[2] if len(res) > 2 else None
 
-                # Update Losses
-                for crit_name, criterion in self.criteria:
-                    if hasattr(criterion, '__call__'):
-                        loss = criterion(output, target)
-                        criterion_losses[crit_name] += loss.item()
+                    # If custom step returns losses, record them
+                    if step_losses:
+                        for crit_name, loss_val in step_losses.items():
+                            criterion_losses[crit_name] = criterion_losses.get(crit_name, 0.0) + loss_val
 
-                # Update Informational Metrics
-                for metric in self.config.METRICS.values():
-                    metric.update(output, target)
+                    # Feed to metrics
+                    for metric in self.config.METRICS.values():
+                        metric.update(outputs, targets)
+                else:
+                    data, target = batch
+                    data, target = data.to(self.device), target.to(self.device)
+                    output = self.model(data)
+
+                    # Update Losses
+                    for crit_name, criterion in self.criteria:
+                        if hasattr(criterion, '__call__'):
+                            loss = criterion(output, target)
+                            criterion_losses[crit_name] += loss.item()
+
+                    # Update Informational Metrics
+                    for metric in self.config.METRICS.values():
+                        metric.update(output, target)
 
         # Finalize results
         results = {}
 
-        # 1. Losses
-        for crit_name, total_loss in criterion_losses.items():
-            avg_loss = total_loss / len(loader)
-            results[f"{crit_name}_loss"] = avg_loss
-            # Log primary loss
-            logger.info(f'{name} set: {crit_name} Average loss: {avg_loss:.4f}')
+        # 1. Losses (skip when using a custom eval step — loss is internal to the model)
+        if self.config.EVAL_STEP_FN is None:
+            for crit_name, total_loss in criterion_losses.items():
+                avg_loss = total_loss / len(loader)
+                results[f"{crit_name}_loss"] = avg_loss
+                logger.info(f'{name} set: {crit_name} Average loss: {avg_loss:.4f}')
 
         # 2. Informational Metrics
         for m_name, metric in self.config.METRICS.items():
-            results[m_name] = metric.compute()
+            val = metric.compute()
             metric.reset()
-            logger.info(f'{name} set: {m_name}: {results[m_name]:.4f}')
+            # Some metrics (e.g. DetectionMAP) return a dict of sub-metrics
+            if isinstance(val, dict):
+                for subkey, subval in val.items():
+                    results[subkey] = subval
+                    logger.info(f'{name} set: {subkey}: {subval:.4f}')
+            else:
+                results[m_name] = val
+                logger.info(f'{name} set: {m_name}: {val:.4f}')
 
         if self.profiler:
             duration = self.profiler.stop(p_key)

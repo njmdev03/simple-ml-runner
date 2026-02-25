@@ -27,23 +27,49 @@ class Trainer:
     def train_epoch(self, loader, optimizer, epoch):
         self.model.train()
         total_loss = 0
+        train_step = self.config.TRAIN_STEP_FN
 
-        for batch_idx, (data, target) in enumerate(loader):
-            data, target = data.to(self.device, non_blocking=True), target.to(self.device, non_blocking=True)
+        for batch_idx, batch in enumerate(loader):
             optimizer.zero_grad()
-            output = self.model(data)
-            loss = self.criterion(output, target)
+
+            if train_step is not None:
+                # Custom step function: (model, batch, device) -> (loss, output | None, target | None)
+                res = train_step(self.model, batch, self.device)
+                if isinstance(res, (tuple, list)):
+                    loss = res[0]
+                    output = res[1] if len(res) > 1 else None
+                    target = res[2] if len(res) > 2 else None
+                else:
+                    loss = res
+                    output = None
+                    target = None
+                
+                # Fallback to batch target if not provided by custom step
+                if target is None:
+                    try:
+                        _, target = batch
+                    except:
+                        pass
+            else:
+                data, target = batch
+                data = data.to(self.device, non_blocking=True)
+                target = target.to(self.device, non_blocking=True)
+                output = self.model(data)
+                loss = self.criterion(output, target)
+
             loss.backward()
             optimizer.step()
 
             total_loss += loss.item()
 
-            # Update Informational Metrics
-            for metric in self.config.METRICS.values():
-                metric.update(output, target)
+            # Update Informational Metrics (only when output and target are tensors)
+            if output is not None and target is not None:
+                for metric in self.config.METRICS.values():
+                    metric.update(output, target)
 
             if batch_idx % 10 == 0:
-                logger.info(f'Train Epoch: {epoch} [{batch_idx * len(data)}/{len(loader.dataset)} '
+                n_samples = len(batch[0]) if not train_step else batch_idx
+                logger.info(f'Train Epoch: {epoch} [batch {batch_idx}/{len(loader)} '
                             f'({100. * batch_idx / len(loader):.0f}%)]\tLoss: {loss.item():.6f}')
 
         avg_loss = total_loss / len(loader)
@@ -135,9 +161,9 @@ class Trainer:
                         logger.info(f"Early halting: {halt_cond} {val} > threshold {halt_thresh}")
                         break
 
-                # Eval while training
-                if self.config.TEST_WHILE_TRAINING and eval_callback:
-                    eval_callback(epoch)
+                # Epoch callback (records live loss/metrics and optional eval)
+                if eval_callback:
+                    eval_callback(epoch, epoch_results)
         except KeyboardInterrupt:
             logger.warning("\nTraining interrupted by user!")
 

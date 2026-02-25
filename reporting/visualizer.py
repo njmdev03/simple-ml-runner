@@ -376,6 +376,10 @@ class Visualizer:
                                  num_samples: int = 9, show: bool = False,
                                  ax: plt.Axes = None):
         """Grid of dataset samples with actual vs predicted labels."""
+        if num_samples <= 0:
+            logger.info("Skipping sample predictions (num_samples <= 0)")
+            return
+
         import torch
 
         model.eval()

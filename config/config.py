@@ -83,6 +83,7 @@ class Datasets(Enum):
 class TaskType(Enum):
     CLASSIFICATION = "classification"
     SEGMENTATION = "segmentation"
+    DETECTION = "detection"
 
 
 class ResolvedConfig:
@@ -150,6 +151,11 @@ class ResolvedConfig:
     EVAL_METRICS: List[str]
     METRICS: Dict[str, Any]  # Dictionary of instantiated metric objects
 
+    # Custom Step Functions & Data Loading
+    COLLATE_FN: Optional[Any]   # Optional callable: list of samples -> batch
+    TRAIN_STEP_FN: Optional[Any]  # Optional callable: (model, data, target, device) -> (loss, output)
+    EVAL_STEP_FN: Optional[Any]   # Optional callable: (model, data, target, device) -> (outputs, targets)
+
 
 @dataclass
 class Config:
@@ -206,6 +212,11 @@ class Config:
     TASK_TYPE: str = DefaultValue.field("classification")
     EVAL_METRICS: List[str] = DefaultValue.field(["Accuracy"])
     CUSTOM_METRICS: Dict[str, Any] = DefaultValue.field(None)
+
+    # Custom Step Functions & Data Loading
+    COLLATE_FN: Optional[Any] = DefaultValue.field(None)
+    TRAIN_STEP_FN: Optional[Any] = DefaultValue.field(None)
+    EVAL_STEP_FN: Optional[Any] = DefaultValue.field(None)
 
     # Visualization
     VIS_TYPE: List[str] = DefaultValue.field(['all'])
@@ -481,7 +492,7 @@ class Config:
         if self.CUSTOM_METRICS:
             rc.METRICS.update(self.CUSTOM_METRICS)
         else:
-            from utils.metrics import Accuracy, Precision, Recall, F1Score, MeanIoU, PixelAccuracy
+            from utils.metrics import Accuracy, Precision, Recall, F1Score, MeanIoU, PixelAccuracy, DetectionMAP
 
             metric_map = {
                 "Accuracy": Accuracy,
@@ -489,7 +500,8 @@ class Config:
                 "Recall": Recall,
                 "F1": F1Score,
                 "MeanIoU": MeanIoU,
-                "PixelAccuracy": PixelAccuracy
+                "PixelAccuracy": PixelAccuracy,
+                "DetectionMAP": DetectionMAP,
             }
 
             for m_name in rc.EVAL_METRICS:

@@ -142,3 +142,40 @@ class PixelAccuracy(BaseMetric):
     def reset(self):
         self.correct = 0
         self.total = 0
+
+
+class DetectionMAP(BaseMetric):
+    """mAP metric wrapper for Object Detection using torchmetrics.
+
+    Expects update(preds, targets) with:
+        preds:   list of dicts with 'boxes', 'scores', 'labels' tensors
+        targets: list of dicts with 'boxes', 'labels' tensors
+
+    compute() returns a dict:
+        {'mAP@0.5': float, 'mAP': float, 'mAR': float}
+    """
+    def __init__(self, iou_type: str = "bbox"):
+        try:
+            from torchmetrics.detection import MeanAveragePrecision as _MAP
+        except ImportError:
+            raise ImportError(
+                "torchmetrics is required for DetectionMAP. "
+                "Install it with: pip install torchmetrics"
+            )
+        self._metric = _MAP(iou_type=iou_type, box_format="xyxy")
+        self._metric.reset()
+
+    def update(self, preds, targets):
+        """Accept list-of-dict format returned by Faster R-CNN in eval mode."""
+        self._metric.update(preds, targets)
+
+    def compute(self) -> dict:
+        result = self._metric.compute()
+        return {
+            "mAP@0.5": result.get("map_50", 0.0).item(),
+            "mAP":     result.get("map",    0.0).item(),
+            "mAR":     result.get("mar_100", 0.0).item(),
+        }
+
+    def reset(self):
+        self._metric.reset()
