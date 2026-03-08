@@ -1,8 +1,2 @@
 # Ignore python cache
 **/__pycache__
-
-# Ignore common python venv folders.
-**/.venv/
-**/.env/
-**/venv/
-**/env/

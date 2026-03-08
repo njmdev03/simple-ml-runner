@@ -2,6 +2,3 @@ torch
 torchvision
 PyYAML
 toml
-pandas
-openpyxl
-matplotlib
