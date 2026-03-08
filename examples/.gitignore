@@ -1,7 +1,0 @@
-# Ignore commonly used example folders.
-**/data
-**/models
-**/checkpoints
-**/profiles
-**/results
-**/vis
