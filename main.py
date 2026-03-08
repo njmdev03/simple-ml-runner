@@ -1,4 +1,3 @@
-# main.py
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -8,15 +7,21 @@ from torchvision.transforms import ToTensor
 from engine.engine import Engine
 from log_utils.logger_setup import setup_logging
 from callbacks.time_profiler import TimeProfiler
-from callbacks.console_logger import ConsoleLogger
 from callbacks.checkpoint_callback import CheckpointCallback
 from callbacks.evaluation_callback import EvaluationCallback
+from callbacks.batch_logger import BatchLogger
+from callbacks.epoch_logger import EpochLogger
+from callbacks.eval_logger import EvalLogger
 
 from tasks.classification_task import ClassificationTask
 
 
-def main():
+def accuracy(outputs, targets):
+    preds = outputs.argmax(dim=1)
+    return (preds == targets).float().mean().item()
 
+
+def main():
     # -------------------------------
     # 1. Setup Logging
     # -------------------------------
@@ -58,7 +63,7 @@ def main():
         val_loader=val_loader,
         device= "cuda" if torch.cuda.is_available() else "cpu",
         metrics=[
-
+            accuracy
         ]  # Add metric functions if needed
     )
 
@@ -67,16 +72,16 @@ def main():
     # -------------------------------
     callbacks = []
 
-    # Logs batch-level info every 50 steps
-    callbacks.append(ConsoleLogger(every_n_batches=100))
+    callbacks.append(EpochLogger())
 
-    # Checkpoints every epoch
-    callbacks.append(CheckpointCallback(path="checkpoints-t/", every_n_epochs=1))
-
-    # Evaluate validation dataset every epoch
     callbacks.append(EvaluationCallback(every_n_epochs=1))
 
-    # Measure time per epoch and total training
+    callbacks.append(EvalLogger())
+
+    callbacks.append(BatchLogger(every_n_batches=10, every_n_eval_batches=10))
+
+    callbacks.append(CheckpointCallback(path="checkpoints/", every_n_epochs=1))
+
     callbacks.append(TimeProfiler())
 
     # -------------------------------
@@ -84,14 +89,16 @@ def main():
     # -------------------------------
     engine = Engine(
         task=task,
-        callbacks=callbacks,
-        # device="cuda" if torch.cuda.is_available() else "cpu"
+        callbacks=callbacks
     )
 
     # -------------------------------
     # 6. Run Training
     # -------------------------------
-    engine.train(epochs=5)
+    try:
+        engine.train(epochs=5)
+    except KeyboardInterrupt:
+        logger.warning(f"User interrupted training")
 
     logger.info("Training complete")
 
@@ -99,7 +106,10 @@ def main():
     # 7. Optionally Run Evaluation Only
     # -------------------------------
     logger.info("Running final evaluation with validation set")
-    engine.evaluate()
+    try:
+        engine.evaluate()
+    except KeyboardInterrupt:
+        logger.warning(f"User interrupted Evaluation")
 
     logger.info("Job Complete")
 

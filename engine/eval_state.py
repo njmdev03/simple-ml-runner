@@ -8,7 +8,7 @@ class EvalState(State):
     # Running total of metric values
     total_metrics: dict = field(default_factory=dict)
 
-    def _safe_sum(dict_a, dict_b, key):
+    def _safe_sum(self, dict_a, dict_b, key):
         a = dict_a.get(key)
         b = dict_b.get(key)
 
