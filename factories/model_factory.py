@@ -1,4 +1,5 @@
-from registries.model_registry import ModelRegistry
+from registries import ModelRegistry
+
 
 def resolve_model(cfg: dict):
     key = next(iter(cfg))

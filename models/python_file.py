@@ -2,7 +2,8 @@
 import importlib.util
 import sys
 from pathlib import Path
-from registries.model_registry import ModelRegistry
+from registries import ModelRegistry
+
 
 @ModelRegistry.register("Python")
 class PythonModel:

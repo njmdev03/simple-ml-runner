@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-from registries.model_registry import ModelRegistry
+from registries import ModelRegistry
+
 
 @ModelRegistry.register("RNN")
 class SimpleRNN(nn.Module):

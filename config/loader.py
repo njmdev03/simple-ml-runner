@@ -1,5 +1,5 @@
 from pathlib import Path
-from registries.config_registry import ConfigRegistry
+from registries import ConfigRegistry
 
 from config import yaml_parser
 from config import json_parser
@@ -13,6 +13,7 @@ def load_file(path):
     parser = ConfigRegistry.get(path.suffix)
 
     return parser(path)
+
 
 def merge_dicts(base, override):
     result = base.copy()
@@ -28,6 +29,7 @@ def merge_dicts(base, override):
             result[k] = v
 
     return result
+
 
 def load_config(cfg, seen=None):
     if seen is None:

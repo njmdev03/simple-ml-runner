@@ -1,5 +1,6 @@
 import torch.nn as nn
-from registries.model_registry import ModelRegistry
+from registries import ModelRegistry
+
 
 @ModelRegistry.register("CNN")
 class SimpleCNN(nn.Module):
