@@ -1,4 +1,6 @@
 from typing import Callable, Dict
+from torch import nn, optim
+from torch.optim import lr_scheduler
 
 
 class BaseRegistry:
@@ -52,17 +54,33 @@ class DatasetRegistry(BaseRegistry):
 class OptimizerRegistry(BaseRegistry):
     _registry = {}
 
+OptimizerRegistry.register("adam")(optim.Adam)
+OptimizerRegistry.register("sgd")(optim.SGD)
+OptimizerRegistry.register("adamw")(optim.AdamW)
+
 
 class LossRegistry(BaseRegistry):
     _registry = {}
+
+LossRegistry.register("cross_entropy")(nn.CrossEntropyLoss)
+LossRegistry.register("mse")(nn.MSELoss)
+LossRegistry.register("nll")(nn.NLLLoss)
 
 
 class MetricRegistry(BaseRegistry):
     _registry = {}
 
+@MetricRegistry.register("accuracy")
+def accuracy(outputs, targets):
+    preds = outputs.argmax(dim=1)
+    return (preds == targets).float().mean().item()
+
 
 class SchedulerRegistry(BaseRegistry):
     _registry = {}
+
+SchedulerRegistry.register("step_lr")(lr_scheduler.StepLR)
+SchedulerRegistry.register("cosine_annealing")(lr_scheduler.CosineAnnealingLR)
 
 
 def resolve_component(cfg: dict, registry: BaseRegistry) -> object:
