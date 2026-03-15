@@ -1,0 +1,8 @@
+import yaml
+
+from registries.config_registry import ConfigRegistry
+
+@ConfigRegistry.register(".yaml", ".yml")
+def parse_yaml(path):
+    with open(path) as f:
+        return yaml.safe_load(f)

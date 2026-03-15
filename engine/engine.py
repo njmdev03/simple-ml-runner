@@ -72,12 +72,12 @@ class Engine:
                 loss.backward()
                 self.task.optimizer.step()
 
-                self.train_state.loss = loss
+                self.train_state.loss = loss.detach()
 
-                if self.train_state.total_loss:
-                    self.train_state.total_loss += loss
+                if self.train_state.total_loss is not None:
+                    self.train_state.total_loss = self.train_state.total_loss + loss.detach()
                 else:
-                    self.train_state.total_loss = loss
+                    self.train_state.total_loss = loss.detach()
 
                 self.train_state.outputs = outputs
                 self.train_state.targets = targets
@@ -115,12 +115,12 @@ class Engine:
                 self.eval_state.metrics = self.task.compute_metrics(outputs, targets)
                 self.eval_state.sum_metrics(self.eval_state.metrics)
 
-                self.eval_state.loss = loss
+                self.eval_state.loss = loss.detach()
 
-                if self.eval_state.total_loss:
-                    self.eval_state.total_loss += loss
+                if self.eval_state.total_loss is not None:
+                    self.eval_state.total_loss = self.eval_state.total_loss + loss.detach()
                 else:
-                    self.eval_state.total_loss = loss
+                    self.eval_state.total_loss = loss.detach()
 
                 self.eval_state.outputs = outputs
                 self.eval_state.targets = targets

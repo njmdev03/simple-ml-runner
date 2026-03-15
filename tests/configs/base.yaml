@@ -1,0 +1,21 @@
+model:
+  name: mlp
+  hidden_dim: 128
+  dropout: 0.1
+
+dataset:
+  name: mnist
+  batch_size: 32
+  num_workers: 2
+
+optimizer:
+  name: adam
+  lr: 0.001
+  weight_decay: 0.0
+
+trainer:
+  epochs: 5
+  device: cpu
+
+callbacks:
+  - console_logger

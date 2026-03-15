@@ -1,0 +1,6 @@
+extends:
+  - bad_config_2.yaml
+
+model:
+  name: mlp
+  hidden_dim: 128

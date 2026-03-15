@@ -13,6 +13,8 @@ from callbacks.batch_logger import BatchLogger
 from callbacks.epoch_logger import EpochLogger
 from callbacks.eval_logger import EvalLogger
 
+import config.loader as cl
+
 from tasks.classification_task import ClassificationTask
 
 
@@ -31,6 +33,22 @@ def main():
     )
 
     logger.info("Starting ML experiment")
+
+    # -------------------------------
+    # 2. Load Config
+    # -------------------------------
+    config = {
+        "key1": 1,
+        "key2": 2,
+        "key3": 3,
+        "key4": 4,
+        "key5": 5,
+    }
+
+    cl.load_config(config)
+
+    quit()
+
 
     # -------------------------------
     # 2. Load Data

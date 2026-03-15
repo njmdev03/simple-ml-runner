@@ -1,0 +1,12 @@
+extends:
+  - mnist.yaml
+
+model:
+  hidden_dim: 256
+
+optimizer:
+  lr: 0.0005
+
+callbacks:
+  - console_logger
+  - checkpoint

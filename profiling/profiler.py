@@ -1,5 +1,5 @@
 import time
-from logging import logger
+from log_utils import logger
 
 
 class Profiler:
