@@ -1,4 +1,3 @@
-# models/rnn.py
 import torch
 import torch.nn as nn
 from registries.model_registry import ModelRegistry
@@ -7,7 +6,7 @@ from registries.model_registry import ModelRegistry
 class SimpleRNN(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size, rnn_type='GRU', dropout=0.0):
         """
-        rnn_type: 'GRU' or 'LSTM'
+        rnn_type: 'GRU', 'LSTM', or 'RNN'
         """
         super().__init__()
         self.rnn_type = rnn_type.upper()
@@ -18,6 +17,8 @@ class SimpleRNN(nn.Module):
             self.rnn = nn.GRU(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout)
         elif self.rnn_type == 'LSTM':
             self.rnn = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout)
+        elif self.rnn_type == 'RNN':
+            self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout)
         else:
             raise ValueError(f"Unknown rnn_type: {rnn_type}")
 
@@ -29,8 +30,10 @@ class SimpleRNN(nn.Module):
             h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size, device=x.device)
             c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size, device=x.device)
             out, _ = self.rnn(x, (h0, c0))
-        else:  # GRU
+        else:  # GRU or vanilla RNN
             h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size, device=x.device)
             out, _ = self.rnn(x, h0)
-        out = self.fc(out[:, -1, :])  # Take last time step
+
+        # Use the last time step output for classification/regression
+        out = self.fc(out[:, -1, :])
         return out
