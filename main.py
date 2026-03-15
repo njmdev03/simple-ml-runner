@@ -1,3 +1,5 @@
+import argparse
+from pathlib import Path
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -25,33 +27,39 @@ def accuracy(outputs, targets):
 
 def main():
     # -------------------------------
-    # 1. Setup Logging
+    # Parse CLI Arguments
     # -------------------------------
-    logger = setup_logging(
-        level="INFO",
-        log_file="train.log"
+    parser = argparse.ArgumentParser(description="ML Job Runner")
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="Path to the config file (yaml, json, toml, ini)"
     )
-
-    logger.info("Starting ML experiment")
+    args = parser.parse_args()
+    config_path = Path(args.config).resolve()
 
     # -------------------------------
-    # 2. Load Config
+    # Load Config
     # -------------------------------
-    config = {
-        "key1": 1,
-        "key2": 2,
-        "key3": 3,
-        "key4": 4,
-        "key5": 5,
-    }
+    cfg = cl.load_config(config_path)
+    # TODO: Config to object
 
-    cl.load_config(config)
+    # -------------------------------
+    # Setup Logging
+    # -------------------------------
+    # TODO: Switch to config object
+    log_file = cfg.get("log_file", "train.log")
+    log_level = cfg.get("log_level", "INFO")
+    logger = setup_logging(level=log_level, log_file=log_file)
+    logger.info(f"Starting ML experiment using config {config_path}")
+
+    print(cfg)
 
     quit()
 
 
     # -------------------------------
-    # 2. Load Data
+    # Load Data
     # -------------------------------
     train_dataset = MNIST("./data/", download=True, transform=ToTensor())
     val_dataset = MNIST("./data/", train=False, download=True, transform=ToTensor())
@@ -60,7 +68,7 @@ def main():
     val_loader = DataLoader(val_dataset, batch_size=64)
 
     # -------------------------------
-    # 3. Define Model + Loss + Task
+    # Define Model + Loss + Task
     # -------------------------------
     model = nn.Sequential(
         nn.Flatten(),
@@ -86,7 +94,7 @@ def main():
     )
 
     # -------------------------------
-    # 4. Setup Callbacks
+    # Setup Callbacks
     # -------------------------------
     callbacks = []
 
@@ -103,7 +111,7 @@ def main():
     callbacks.append(TimeProfiler())
 
     # -------------------------------
-    # 5. Create Engine
+    # Create Engine
     # -------------------------------
     engine = Engine(
         task=task,
@@ -111,7 +119,7 @@ def main():
     )
 
     # -------------------------------
-    # 6. Run Training
+    # Run Training
     # -------------------------------
     try:
         engine.train(epochs=5)
@@ -121,7 +129,7 @@ def main():
     logger.info("Training complete")
 
     # -------------------------------
-    # 7. Optionally Run Evaluation Only
+    # Optionally Run Evaluation Only
     # -------------------------------
     logger.info("Running final evaluation with validation set")
     try:

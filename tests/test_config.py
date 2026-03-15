@@ -69,6 +69,7 @@ def test_config_loading():
     assert cfg["dataset"]["batch_size"] == 64
     assert cfg["optimizer"]["lr"] == 0.0005
     assert cfg["trainer"]["device"] == "cuda"
+    assert cfg["dataset"]["batch_size"] == 64
 
 
 def test_config_callbacks():
