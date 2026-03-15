@@ -1,6 +1,6 @@
 import yaml
 
-from registries.config_registry import ConfigRegistry
+from registries import ConfigRegistry
 
 @ConfigRegistry.register(".yaml", ".yml")
 def parse_yaml(path):

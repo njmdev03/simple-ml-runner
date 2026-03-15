@@ -1,6 +1,6 @@
 import tomllib
 
-from registries.config_registry import ConfigRegistry
+from registries import ConfigRegistry
 
 @ConfigRegistry.register(".toml")
 def parse_toml(path):

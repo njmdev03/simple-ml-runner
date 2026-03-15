@@ -1,6 +1,6 @@
 import configparser
 
-from registries.config_registry import ConfigRegistry
+from registries import ConfigRegistry
 
 @ConfigRegistry.register(".ini")
 def parse_ini(path):

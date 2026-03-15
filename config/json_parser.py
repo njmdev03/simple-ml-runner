@@ -1,7 +1,6 @@
 import json
 
-from registries.config_registry import ConfigRegistry
-
+from registries import ConfigRegistry
 
 @ConfigRegistry.register(".json")
 def parse_json(path):
