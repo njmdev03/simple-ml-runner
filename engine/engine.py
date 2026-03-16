@@ -3,6 +3,7 @@ from enum import Enum
 
 from .train_state import TrainState
 from .eval_state import EvalState
+from .metadata import MetadataManager
 
 
 class EngineEvent(Enum):
@@ -39,6 +40,8 @@ class Engine:
         self.train_state = TrainState()
         self.eval_state = EvalState()
 
+        self.metadata = MetadataManager()
+
     def _trigger(self, event: EngineEvent):
         for cb in self.callbacks:
             method = getattr(cb, event.value, None)
@@ -54,7 +57,6 @@ class Engine:
         self.model.train()
 
         for epoch in range(1, epochs + 1):
-
             self.train_state.epoch = epoch
             self.train_state.batches = len(self.task.train_loader)
 
@@ -85,6 +87,8 @@ class Engine:
                 self._trigger(EngineEvent.BATCH_END)
 
             self._trigger(EngineEvent.EPOCH_END)
+            
+            self.metadata.flush()
 
             # Reset training state, keeping total epochs count
             epochs_t = self.train_state.epochs
@@ -130,4 +134,6 @@ class Engine:
 
         self._trigger(EngineEvent.EVAL_END)
 
-        self.eval_state = EvalState()
+        self.metadata.flush()
+
+        self.eval_state = EvalState()

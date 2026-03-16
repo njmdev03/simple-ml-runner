@@ -29,16 +29,22 @@ metrics:
   - accuracy
 
 training:
-  epochs: 5
+  enabled: true
+  epochs: 1
 
 evaluation:
-  eval_during_training: true
+  enabled: true
   eval_checkpoints: true
   eval_frequency: 1
 
 checkpoint:
-  directory: checkpoints/
-  name: mnist_mlp_epoch_{epoch}
+  directory: "checkpoints/{experiment_name}/{date:%Y%m%d}"
+  name_template: "model_epoch_{epoch}.pt"
   frequency: 1
+
+logging:
+  output_dir: "results/{experiment_name}"
+  log_file: "run_{timestamp}.log"
+  level: INFO
 
 profile: true

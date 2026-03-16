@@ -105,6 +105,7 @@ class RunConfig:
     profile: ProfileConfig = field(default_factory=ProfileConfig)
     visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    extensions: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def do_train(self) -> bool:
@@ -119,6 +120,8 @@ class RunConfig:
         """
         Builds a RunConfig from a nested dictionary.
         """
+        from registries import ExtensionRegistry
+
         # Experiment
         exp_raw = cfg.get("experiment", {})
         if isinstance(exp_raw, str): exp_raw = {"name": exp_raw}
@@ -150,17 +153,31 @@ class RunConfig:
         optimizer = OptimizerConfig(name=opt_name, lr=lr, params=opt_params)
 
         # Profile
-        prof_raw = cfg.get("profile", False)
+        prof_raw = cfg.get("profile", {})
         if isinstance(prof_raw, bool):
             profile = ProfileConfig(enabled=prof_raw)
         else:
             profile = ProfileConfig(**prof_raw)
 
         # Eval
-        eval_raw = cfg.get("eval", cfg.get("evaluation", {}))
+        eval_dict = cfg.get("eval", cfg.get("evaluation", {}))
         # Handle 'test_on_training_data' -> 'eval_on_train_data'
-        if "test_on_training_data" in eval_raw:
-            eval_raw["eval_on_train_data"] = eval_raw.pop("test_on_training_data")
+        if "test_on_training_data" in eval_dict:
+            eval_dict["eval_on_train_data"] = eval_dict.pop("test_on_training_data")
+
+        # Extensions
+        ext_configs = {}
+        for ext_name in ExtensionRegistry.all():
+            ext_cls = ExtensionRegistry.get(ext_name)
+            ext = ext_cls()
+            conf_cls = ext.get_config_class()
+            if conf_cls and ext_name in cfg:
+                data = cfg[ext_name]
+                if isinstance(data, dict):
+                    ext_configs[ext_name] = conf_cls(**data)
+                elif isinstance(data, bool):
+                    # For simple toggle-based extensions
+                    ext_configs[ext_name] = conf_cls(enabled=data)
 
         return cls(
             experiment=experiment,
@@ -172,20 +189,10 @@ class RunConfig:
             optimizer=optimizer,
             metrics=cfg.get("metrics", ["accuracy"]),
             training=TrainingConfig(**cfg.get("training", {})),
-            evaluation=EvaluationConfig(**cfg.get("evaluation", {})),
+            evaluation=EvaluationConfig(**eval_dict),
             checkpoint=CheckpointConfig(**cfg.get("checkpoint", {})),
             profile=profile,
             visualization=VisualizationConfig(**cfg.get("visualization", {})),
-            logging=LoggingConfig(**cfg.get("logging", {}))
+            logging=LoggingConfig(**cfg.get("logging", {})),
+            extensions=ext_configs
         )
-
-
-@dataclass
-class RuntimeConfig:
-    """Fully resolved runtime objects."""
-    task: Any
-    engine: Any
-    callbacks: List[Any]
-    epochs: int
-    profile: bool
-    # Add other runtime-specific needs here

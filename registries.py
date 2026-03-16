@@ -83,6 +83,22 @@ SchedulerRegistry.register("step_lr")(lr_scheduler.StepLR)
 SchedulerRegistry.register("cosine_annealing")(lr_scheduler.CosineAnnealingLR)
 
 
+class Extension:
+    """
+    Base class for extensions.
+    Extensions can provide custom configuration schemas and callbacks.
+    """
+    def get_config_class(self):
+        return None
+
+    def create_callbacks(self, run_config, context):
+        return []
+
+
+class ExtensionRegistry(BaseRegistry):
+    _registry = {}
+
+
 def resolve_component(cfg: dict, registry: BaseRegistry) -> object:
     """
     Generic factory to resolve any component from a registry.

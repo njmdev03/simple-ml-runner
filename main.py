@@ -11,6 +11,8 @@ from log_utils.logger_setup import setup_logging
 import config.loader as cl
 from config.run_config import RunConfig
 from config.path_utils import resolve_path_template, ensure_dir
+from log_utils import logger
+import extensions # Bootstrap all extensions early
 
 from tasks.classification_task import ClassificationTask
 
@@ -191,10 +193,13 @@ def run_job(run_cfg: RunConfig, args):
     # -------------------------------
     # Build Callbacks
     # -------------------------------
+    from registries import ExtensionRegistry
+
     callbacks = []
     callbacks.append(EpochLogger())
     callbacks.append(EvalLogger())
 
+    # Build from Config
     if run_cfg.checkpoint.frequency > 0:
         checkpoint_dir = resolve_path_template(run_cfg.checkpoint.directory, context)
         ensure_dir(checkpoint_dir)
@@ -202,15 +207,17 @@ def run_job(run_cfg: RunConfig, args):
             path=checkpoint_dir,
             name_template=run_cfg.checkpoint.name_template,
             metadata_format=run_cfg.checkpoint.metadata_format,
-            save_metadata=run_cfg.checkpoint.save_metadata,
             every_n_epochs=run_cfg.checkpoint.frequency
         ))
 
     if run_cfg.evaluation.eval_during_training:
         callbacks.append(EvaluationCallback(every_n_epochs=run_cfg.evaluation.eval_frequency))
 
-    if run_cfg.profile.enabled:
-        callbacks.append(TimeProfiler())
+    # Build from Extensions
+    for ext_name in ExtensionRegistry.all():
+        ext_cls = ExtensionRegistry.get(ext_name)
+        ext = ext_cls()
+        callbacks.extend(ext.create_callbacks(run_cfg, context))
 
     # Create Engine
     engine = Engine(task=task, callbacks=callbacks)
