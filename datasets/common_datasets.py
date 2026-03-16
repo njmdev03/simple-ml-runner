@@ -1,7 +1,7 @@
 # datasets/common_datasets.py
 import torch
 from torch.utils.data import Dataset
-from torchvision.datasets import MNIST, CIFAR100, OxfordIIITPet, PennFudanPed
+from torchvision.datasets import MNIST, CIFAR100, OxfordIIITPet #, PennFudanPed
 from torchvision import transforms
 from torch.utils.data import random_split
 from registries import DatasetRegistry
@@ -13,9 +13,9 @@ from sklearn.model_selection import train_test_split
 # -------------------------
 @DatasetRegistry.register("MNIST")
 class MNISTDataset(Dataset):
-    def __init__(self, train=True, download=True, transform=None):
+    def __init__(self, train=True, download=True, root="./data/mnist", transform=None):
         self.dataset = MNIST(
-            root="./data/mnist",
+            root=root,
             train=train,
             download=download,
             transform=transform or transforms.ToTensor()
@@ -72,20 +72,20 @@ class OxfordPetDataset(Dataset):
 # -------------------------
 # Penn-Fudan Pedestrian
 # -------------------------
-@DatasetRegistry.register("PennFudanPed")
-class PennFudanPedDataset(Dataset):
-    def __init__(self, transforms=None, download=True):
-        self.dataset = PennFudanPed(
-            root="./data/pennfudan",
-            download=download,
-            transforms=transforms
-        )
+# @DatasetRegistry.register("PennFudanPed")
+# class PennFudanPedDataset(Dataset):
+#     def __init__(self, transforms=None, download=True):
+#         self.dataset = PennFudanPed(
+#             root="./data/pennfudan",
+#             download=download,
+#             transforms=transforms
+#         )
 
-    def __len__(self):
-        return len(self.dataset)
+#     def __len__(self):
+#         return len(self.dataset)
 
-    def __getitem__(self, idx):
-        return self.dataset[idx]
+#     def __getitem__(self, idx):
+#         return self.dataset[idx]
 
 
 # -------------------------

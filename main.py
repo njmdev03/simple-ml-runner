@@ -1,13 +1,20 @@
-import argparse
-from pathlib import Path
 import torch
-from torch import nn
 from torch.utils.data import DataLoader
-from torchvision.datasets import MNIST
-from torchvision.transforms import ToTensor
 
 from engine.engine import Engine
 from log_utils.logger_setup import setup_logging
+
+import config.loader as cl
+
+from tasks.classification_task import ClassificationTask
+
+from registries import ModelRegistry
+from registries import DatasetRegistry
+from registries import OptimizerRegistry
+from registries import LossRegistry
+from registries import MetricRegistry
+from registries import resolve_component
+
 from callbacks.time_profiler import TimeProfiler
 from callbacks.checkpoint_callback import CheckpointCallback
 from callbacks.evaluation_callback import EvaluationCallback
@@ -15,71 +22,104 @@ from callbacks.batch_logger import BatchLogger
 from callbacks.epoch_logger import EpochLogger
 from callbacks.eval_logger import EvalLogger
 
-import config.loader as cl
-
-from tasks.classification_task import ClassificationTask
-
-
-def accuracy(outputs, targets):
-    preds = outputs.argmax(dim=1)
-    return (preds == targets).float().mean().item()
+from datasets import common_datasets
 
 
 def main():
     # -------------------------------
-    # Parse CLI Arguments
+    # Setup Logging
     # -------------------------------
-    parser = argparse.ArgumentParser(description="ML Job Runner")
-    parser.add_argument(
-        "--config",
-        type=str,
-        help="Path to the config file (yaml, json, toml, ini)"
-    )
-    args = parser.parse_args()
-    config_path = Path(args.config).resolve()
+
+    logger = setup_logging(level="INFO", log_file="train.log")
+
+    logger.info("Starting ML experiment")
 
     # -------------------------------
     # Load Config
     # -------------------------------
-    cfg = cl.load_config(config_path)
-    # TODO: Config to object
+
+    cfg = cl.load_config("./examples/MNIST/mnist_mlp.yml")
 
     # -------------------------------
-    # Setup Logging
+    # Resolve Device
     # -------------------------------
-    # TODO: Switch to config object
-    log_file = cfg.get("log_file", "train.log")
-    log_level = cfg.get("log_level", "INFO")
-    logger = setup_logging(level=log_level, log_file=log_file)
-    logger.info(f"Starting ML experiment using config {config_path}")
 
-    print(cfg)
-
-    quit()
-
+    device = "cuda" if torch.cuda.is_available() and "cuda" in cfg["device"] else "cpu"
 
     # -------------------------------
-    # Load Data
+    # Build DataLoaders
     # -------------------------------
-    train_dataset = MNIST("./data/", download=True, transform=ToTensor())
-    val_dataset = MNIST("./data/", train=False, download=True, transform=ToTensor())
 
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=64)
+    dataset_cls = resolve_component(cfg["dataset"], DatasetRegistry)
 
-    # -------------------------------
-    # Define Model + Loss + Task
-    # -------------------------------
-    model = nn.Sequential(
-        nn.Flatten(),
-        nn.Linear(28 * 28, 256),
-        nn.ReLU(),
-        nn.Linear(256, 10)
+    params = cfg["dataset"][cfg["dataset"]]
+
+    val_dataset = dataset_cls.__init__(params)
+
+    params["train"] = True
+
+    train_dataset = dataset_cls.__init__(params)
+
+    batch_size = cfg["dataloader"]["batch_size"]
+    num_workers = None
+    pin_memory = False
+    collate_fn = None
+    shuffle = cfg["dataloader"].get("shuffle", True)
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        collate_fn=collate_fn,
+        shuffle=shuffle
     )
 
-    loss_fn = nn.CrossEntropyLoss()
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        collate_fn=collate_fn
+    )
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    # -------------------------------
+    # Build Model
+    # -------------------------------
+
+    model_cls = resolve_component(cfg["model"], ModelRegistry)
+
+    model = model_cls(cfg["model"][cfg["model"]])
+
+    # -------------------------------
+    # Build Loss
+    # -------------------------------
+
+    loss_fn_cls = resolve_component(cfg["loss"], LossRegistry)
+
+    loss_fn = loss_fn_cls(cfg["loss"][cfg["loss"]])
+
+    # -------------------------------
+    # Build Optimizer
+    # -------------------------------
+
+    optimizer_cls = resolve_component(cfg["optimizer"], OptimizerRegistry)
+
+    optimizer = optimizer_cls(model.parameters(), cfg["optimizer"][cfg["optimizer"]])
+
+    # -------------------------------
+    # Build Metrics
+    # -------------------------------
+
+    metrics = []
+
+    for metric_name in cfg.get("metrics", []):
+        metric_fn = MetricRegistry.get(metric_name)
+        metrics.append(metric_fn)
+
+    # -------------------------------
+    # Build Task
+    # -------------------------------
 
     task = ClassificationTask(
         model=model,
@@ -87,32 +127,35 @@ def main():
         optimizer=optimizer,
         train_loader=train_loader,
         val_loader=val_loader,
-        device= "cuda" if torch.cuda.is_available() else "cpu",
-        metrics=[
-            accuracy
-        ]  # Add metric functions if needed
+        device=device,
+        metrics=metrics
     )
 
     # -------------------------------
-    # Setup Callbacks
+    # Build Callbacks
     # -------------------------------
+
+    # callbacks = build_callbacks(cfg)
+
     callbacks = []
 
     callbacks.append(EpochLogger())
 
-    callbacks.append(EvaluationCallback(every_n_epochs=1))
+    if cfg["evaluation"]["eval_during_training"] and cfg["evaluation"]["eval_checkpoints"]:
+        callbacks.append(EvaluationCallback(every_n_epochs=cfg["evaluation"]["eval_frequency"]))
 
     callbacks.append(EvalLogger())
 
-    callbacks.append(BatchLogger(every_n_batches=10, every_n_eval_batches=10))
+    # callbacks.append(BatchLogger(every_n_batches=10, every_n_eval_batches=10))
 
-    callbacks.append(CheckpointCallback(path="checkpoints/", every_n_epochs=1))
+    callbacks.append(CheckpointCallback(path=cfg["checkpoint"]["directory"], every_n_epochs=cfg["checkpoint"]["frequency"]))
 
     callbacks.append(TimeProfiler())
 
     # -------------------------------
     # Create Engine
     # -------------------------------
+
     engine = Engine(
         task=task,
         callbacks=callbacks
@@ -121,21 +164,24 @@ def main():
     # -------------------------------
     # Run Training
     # -------------------------------
+
+    epochs = cfg["training"]["epochs"]
+
     try:
-        engine.train(epochs=5)
+        engine.train(epochs=epochs)
     except KeyboardInterrupt:
-        logger.warning(f"User interrupted training")
+        logger.warning("User interrupted training")
 
     logger.info("Training complete")
 
     # -------------------------------
-    # Optionally Run Evaluation Only
+    # 13. Run Evaluation
     # -------------------------------
-    logger.info("Running final evaluation with validation set")
+
     try:
         engine.evaluate()
     except KeyboardInterrupt:
-        logger.warning(f"User interrupted Evaluation")
+        logger.warning("User interrupted evaluation")
 
     logger.info("Job Complete")
 

@@ -1,50 +1,44 @@
-# -------------------------------
-# Model Configuration
-# -------------------------------
-model:
-  type: mlp
-  input_dim: 784       # flattened MNIST images
-  hidden_dim: 256
-  output_dim: 10         # 10 classes
-  dropout: 0.1
+experiment:
+  name: mnist_mlp
 
-# -------------------------------
-# Dataset Configuration
-# -------------------------------
+device: auto
+
 dataset:
-  name: mnist
-  data_dir: ./data/
+  MNIST:
+    root: ./data
+    download: true
+
+dataloader:
   batch_size: 64
-  num_workers: 2
+  shuffle: true
 
-# -------------------------------
-# Optimizer Configuration
-# -------------------------------
+model:
+  MLP:
+    input_dim: 784
+    layers: [256, 128]
+    output_dim: 10
+
+loss:
+  cross_entropy: {}
+
 optimizer:
-  type: adam
-  lr: 0.001
-  weight_decay: 0.0
+  adam:
+    lr: 0.001
 
-# -------------------------------
-# Trainer / Engine Configuration
-# -------------------------------
-trainer:
+metrics:
+  - accuracy
+
+training:
   epochs: 5
-  devices: [cuda, cpu]          # automatically uses cuda if available
 
-# -------------------------------
-# Logging / Profiling
-# -------------------------------
-log_file: train.log
-log_level: INFO
-
-# -------------------------------
-# Callbacks
-# -------------------------------
-batch_logger:
-  every_n_batches: 10
-  every_n_eval_batches: 10
+evaluation:
+  eval_during_training: true
+  eval_checkpoints: true
+  eval_frequency: 1
 
 checkpoint:
-  path: checkpoints/mnist_mlp/
-  every_n_epochs: 1
+  directory: checkpoints/
+  name: mnist_mlp_epoch_{epoch}
+  frequency: 1
+
+profile: true
