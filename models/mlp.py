@@ -23,4 +23,5 @@ class MLP(nn.Module):
         self.net = nn.Sequential(*modules)
 
     def forward(self, x):
+        x = x.view(x.size(0), -1)
         return self.net(x)

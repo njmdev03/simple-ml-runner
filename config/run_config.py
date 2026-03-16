@@ -1,4 +1,5 @@
 from __future__ import annotations
+import torch
 from typing import Any, Callable, List, Optional, Dict
 from torch import nn
 from torch.utils.data import Dataset
@@ -17,227 +18,172 @@ from callbacks.base_callback import Callback
 from log_utils import logger
 
 
-class LogLevel(Enum):
-    INFO = "info",
-    VERBOSE = "verbose"
+@dataclass
+class ExperimentConfig:
+    name: str = "default_experiment"
+
+
+@dataclass
+class DatasetConfig:
+    name: str = "MNIST"
+    params: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ModelConfig:
+    name: str = "MLP"
+    params: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class LossConfig:
+    name: str = "cross_entropy"
+    params: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class OptimizerConfig:
+    name: str = "adam"
+    lr: float = 0.001
+    params: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class TrainingConfig:
+    epochs: int = 10
+    batch_size: int = 64
+    shuffle: bool = True
+
+
+@dataclass
+class EvaluationConfig:
+    eval_during_training: bool = True
+    eval_checkpoints: bool = True
+    eval_frequency: int = 1
+    test_on_training_data: bool = False
+
+
+@dataclass
+class CheckpointConfig:
+    directory: Path = field(default_factory=lambda: Path("checkpoints/"))
+    name: str = "model_epoch_{epoch}"
+    frequency: int = 1
+    save_metadata: bool = True
+
+
+@dataclass
+class ProfileConfig:
+    enabled: bool = False
+    output_path: Optional[Path] = None
+
+
+@dataclass
+class VisualizationConfig:
+    type: List[str] = field(default_factory=lambda: ["all"])
+    metrics: List[str] = field(default_factory=lambda: ["all"])
+    datasets: List[str] = field(default_factory=lambda: ["testing"])
+    num_samples: int = 10
+    show: bool = False
+    output_dir: Optional[Path] = field(default_factory=lambda: Path("vis"))
+    format: str = "png"
+    layout: str = "individual"
 
 
 @dataclass
 class RunConfig:
     """
-    Fully-typed runtime configuration for an experiment.
-    Contains resolved objects ready to be consumed by the engine.
+    Parsed configuration from a file or dict.
+    Matches the hierarchical structure.
     """
-
-    """
-    Fully-typed configuration object for an experiment.
-    Contains both raw values and resolved objects for immediate use.
-    """
-    # -------------------------------
-    # General
-    # -------------------------------
-    name: str = "default_experiment"
-    device: List = field(default_factory=["cuda", "cpu"])
-
-    # -------------------------------
-    # Dataset
-    # -------------------------------
-    dataset_name: str = "MNIST"
-    dataset_params: dict = field(default_factory=dict)
-
-    # -------------------------------
-    # Model
-    # -------------------------------
-    model_name: str = "MLP"
-    model_params: dict = field(default_factory=dict)
-
-    # -------------------------------
-    # Loss / Optimizer / Scheduler
-    # -------------------------------
-    loss_name: str = "CrossEntropyLoss"
-    loss_params: dict = field(default_factory=dict)
-
-    optimizer_name: str = "Adam"
-    optimizer_params: dict = field(default_factory=dict)
-
-    scheduler_name: Optional[str] = None
-    scheduler_params: dict = field(default_factory=dict)
-
-    # -------------------------------
-    # Training hyperparameters
-    # -------------------------------
-    batch_size: int = 64
-    epochs: int = 10
-    learning_rate: float = 1e-3
-
-    # -------------------------------
-    # Metrics
-    # -------------------------------
-    metrics: List[str] = field(default_factory=list)
-
-    # -------------------------------
-    # Callbacks
-    # -------------------------------
-    callbacks: List[Any] = field(default_factory=list)
-
-    # -------------------------------
-    # Logging / output
-    # -------------------------------
-    log_file: str = "train.log"
-    save_checkpoints: bool = True
-    checkpoint_path: str = "checkpoints/"
-    log_level: str = "INFO"
+    experiment: ExperimentConfig = field(default_factory=ExperimentConfig)
+    device: str = "auto"
+    dataset: DatasetConfig = field(default_factory=DatasetConfig)
+    dataloader: Dict[str, Any] = field(default_factory=dict) # Keep raw for DataLoader init
+    model: ModelConfig = field(default_factory=ModelConfig)
+    loss: LossConfig = field(default_factory=LossConfig)
+    optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
+    metrics: List[str] = field(default_factory=lambda: ["accuracy"])
+    training: TrainingConfig = field(default_factory=TrainingConfig)
+    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
+    checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
+    profile: ProfileConfig = field(default_factory=ProfileConfig)
+    visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
 
     @classmethod
-    def from_dict(cls, cfg_dict: Dict[str, Any]) -> "RunConfig":
+    def from_dict(cls, cfg: Dict[str, Any]) -> "RunConfig":
         """
-        Build a RunConfig from a dictionary while validating keys
-        and normalizing types.
+        Builds a RunConfig from a nested dictionary.
         """
+        # Experiment
+        exp_raw = cfg.get("experiment", {})
+        if isinstance(exp_raw, str): exp_raw = {"name": exp_raw}
+        experiment = ExperimentConfig(**exp_raw)
 
-        cfg_dict = cfg_dict.copy()
+        # Dataset
+        ds_raw = cfg.get("dataset", {})
+        ds_name = next(iter(ds_raw)) if ds_raw else "MNIST"
+        ds_params = ds_raw.get(ds_name, {})
+        dataset = DatasetConfig(name=ds_name, params=ds_params)
 
-        # -------------------------------
-        # Check for unknown keys
-        # -------------------------------
-        valid_keys = {f.name for f in fields(cls)}
-        unknown = set(cfg_dict.keys()) - valid_keys
+        # Model
+        m_raw = cfg.get("model", {})
+        m_name = next(iter(m_raw)) if m_raw else "MLP"
+        m_params = m_raw.get(m_name, {})
+        model = ModelConfig(name=m_name, params=m_params)
 
-        if unknown:
-            raise ValueError(
-                f"Unknown config keys: {unknown}\n"
-                f"Valid keys: {sorted(valid_keys)}"
-            )
+        # Loss
+        l_raw = cfg.get("loss", {})
+        l_name = next(iter(l_raw)) if l_raw else "cross_entropy"
+        l_params = l_raw.get(l_name, {})
+        loss = LossConfig(name=l_name, params=l_params)
 
-        # -------------------------------
-        # Normalize types
-        # -------------------------------
+        # Optimizer
+        opt_raw = cfg.get("optimizer", {})
+        opt_name = next(iter(opt_raw)) if opt_raw else "adam"
+        opt_params = opt_raw.get(opt_name, {})
+        lr = opt_params.pop("lr", 0.001)
+        optimizer = OptimizerConfig(name=opt_name, lr=lr, params=opt_params)
 
-        # Convert log level string → Enum
-        if "log_level" in cfg_dict and isinstance(cfg_dict["log_level"], str):
-            try:
-                cfg_dict["log_level"] = LogLevel[cfg_dict["log_level"].upper()]
-            except KeyError:
-                raise ValueError(
-                    f"Invalid log_level '{cfg_dict['log_level']}'. "
-                    f"Valid values: {[e.name for e in LogLevel]}"
-                )
+        # Profile (can be bool in YAML)
+        prof_raw = cfg.get("profile", False)
+        if isinstance(prof_raw, bool):
+            profile = ProfileConfig(enabled=prof_raw)
+        else:
+            profile = ProfileConfig(**prof_raw)
 
-        # Convert paths
-        if "log_file" in cfg_dict and not isinstance(cfg_dict["log_file"], Path):
-            cfg_dict["log_file"] = Path(cfg_dict["log_file"])
-
-        if "checkpoint_path" in cfg_dict and not isinstance(cfg_dict["checkpoint_path"], Path):
-            cfg_dict["checkpoint_path"] = Path(cfg_dict["checkpoint_path"])
-
-        return cls(**cfg_dict)
+        # Build the rest using standard dataclass fields if they match names
+        # For simplicity in this first pass, we'll manually map the main ones
+        return cls(
+            experiment=experiment,
+            device=cfg.get("device", "auto"),
+            dataset=dataset,
+            dataloader=cfg.get("dataloader", {}),
+            model=model,
+            loss=loss,
+            optimizer=optimizer,
+            metrics=cfg.get("metrics", ["accuracy"]),
+            training=TrainingConfig(**cfg.get("training", {})),
+            evaluation=EvaluationConfig(**cfg.get("evaluation", {})),
+            checkpoint=CheckpointConfig(**cfg.get("checkpoint", {})),
+            profile=profile,
+            visualization=VisualizationConfig(**cfg.get("visualization", {}))
+        )
 
 
 @dataclass
 class RuntimeConfig:
     """
-    Fully-typed configuration object for an experiment.
-    Contains both raw values and resolved objects for immediate use.
+    Fully-resolved runtime configuration.
+    Contains objects ready to be used.
     """
-    # -------------------------------
-    # General
-    # -------------------------------
-    name: str = "default_experiment"
-    # seed: int = 42
-    devices: List[str] = field(default_factory=["cuda", "cpu"])
-
-    # -------------------------------
-    # Dataset
-    # -------------------------------
-    train_dataset: Optional[Dataset] = None
-    val_dataset: Optional[Dataset] = None
-
-    # -------------------------------
-    # Model
-    # -------------------------------
-    model: Optional[nn.Module] = None
-
-    # -------------------------------
-    # Loss / Optimizer / Scheduler
-    # -------------------------------
-    loss_fn: Optional[Callable] = None
-
-    optimizer: Optional[Optimizer] = None
-
-    scheduler: Optional[Any] = None  # Can be torch.optim.lr_scheduler or custom
-
-    # -------------------------------
-    # Training hyperparameters
-    # -------------------------------
-    batch_size: int = 64
-    epochs: int = 10
-    learning_rate: float = 1e-3
-
-    # -------------------------------
-    # Metrics
-    # -------------------------------
-    metrics: List[Callable] = field(default_factory=list)
-
-    # -------------------------------
-    # Callbacks
-    # -------------------------------
-    callbacks: List[Callback] = field(default_factory=list)
-
-    # -------------------------------
-    # Logging / output
-    # -------------------------------
-    log_file: Path = field(default_factory=Path("train.log"))
-    save_checkpoints: bool = True
-    checkpoint_path: Path = field(default_factory=Path("checkpoints/"))
-    log_level: LogLevel = field(default_factory=LogLevel.INFO)
-
-    @classmethod
-    def from_run_config(config: RunConfig) -> RunConfig:
-        """
-        Converts a raw dictionary into a fully resolved RunConfig object,
-        including dataset, model, loss, optimizer, and metrics.
-        """
-        cfg = RuntimeConfig()
-
-        # -------------------------------
-        # Resolve datasets
-        # -------------------------------
-        dataset_cls = DatasetRegistry.get(cfg.dataset_name)
-        cfg.train_dataset = dataset_cls(**cfg.dataset_params, train=True)
-        cfg.val_dataset = dataset_cls(**cfg.dataset_params, train=False)
-
-        # -------------------------------
-        # Resolve model
-        # -------------------------------
-        model_cls = ModelRegistry.get(cfg.model_name)
-        cfg.model = model_cls(**cfg.model_params)
-
-        # -------------------------------
-        # Resolve loss
-        # -------------------------------
-        loss_cls = LossRegistry.get(cfg.loss_name)
-        cfg.loss_fn = loss_cls(**cfg.loss_params)
-
-        # -------------------------------
-        # Resolve optimizer
-        # -------------------------------
-        optimizer_cls = OptimizerRegistry.get(cfg.optimizer_name)
-        cfg.optimizer = optimizer_cls(cfg.model.parameters(), **cfg.optimizer_params)
-
-        # -------------------------------
-        # Resolve scheduler
-        # -------------------------------
-        if cfg.scheduler_name:
-            scheduler_cls = SchedulerRegistry.get(cfg.scheduler_name)
-            cfg.scheduler = scheduler_cls(cfg.optimizer, **cfg.scheduler_params)
-
-        # -------------------------------
-        # Resolve metrics
-        # -------------------------------
-        resolved_metrics = []
-        for metric_name in cfg.metrics:
-            metric_fn = MetricRegistry.get(metric_name)
-            resolved_metrics.append(metric_fn)
-        cfg.metrics = resolved_metrics
-
-        return cfg
+    model: nn.Module
+    loss_fn: nn.Module
+    optimizer: Optimizer
+    train_loader: Any
+    val_loader: Any
+    device: torch.device
+    metrics: List[Callable]
+    callbacks: List[Any]
+    epochs: int
+    profile: bool
+    # Add other runtime-specific needs here
