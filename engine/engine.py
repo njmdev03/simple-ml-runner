@@ -98,6 +98,7 @@ class Engine:
         self.train_state = TrainState()
 
     def evaluate(self):
+        self.eval_state.epoch = self.train_state.epoch
         self.eval_state.batches = len(self.task.val_loader)
 
         self._trigger(EngineEvent.EVAL_START)

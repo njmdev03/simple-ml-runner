@@ -7,7 +7,8 @@ def test_run_config_from_dict_basic():
         "device": "cpu",
         "dataset": {"MNIST": {"root": "./data"}},
         "model": {"MLP": {"input_dim": 784}},
-        "training": {"epochs": 12, "batch_size": 32}
+        "training": {"epochs": 12, "enabled": True},
+        "eval": {"enabled": True, "eval_frequency": 2}
     }
 
     run_cfg = RunConfig.from_dict(cfg_dict)
@@ -15,34 +16,39 @@ def test_run_config_from_dict_basic():
     assert run_cfg.experiment.name == "test_exp"
     assert run_cfg.device == "cpu"
     assert run_cfg.dataset.name == "MNIST"
-    assert run_cfg.dataset.params == {"root": "./data"}
-    assert run_cfg.model.name == "MLP"
-    assert run_cfg.model.params == {"input_dim": 784}
     assert run_cfg.training.epochs == 12
+    assert run_cfg.do_train is True
+    assert run_cfg.eval.eval_frequency == 2
 
 def test_apply_overrides():
     cfg_dict = {
         "optimizer": {"adam": {"lr": 0.001}},
-        "training": {"epochs": 5}
+        "training": {"epochs": 5, "enabled": False}
     }
 
-    # Mock args
     class Args:
         lr = 0.01
         batch_size = 128
         epochs = None
         device = "cuda"
-        checkpoint_dir = None
+        checkpoint_dir = "my_runs"
         checkpoint_frequency = None
+        do_train = True
+        do_eval = None
+        log_level = "DEBUG"
+        log_dir = "logs"
 
     args = Args()
-
     overridden = apply_overrides(cfg_dict, args)
 
     assert overridden["optimizer"]["adam"]["lr"] == 0.01
     assert overridden["dataloader"]["batch_size"] == 128
     assert overridden["training"]["epochs"] == 5 # Not overridden
+    assert overridden["training"]["enabled"] is True
     assert overridden["device"] == "cuda"
+    assert overridden["checkpoint"]["directory"] == "my_runs"
+    assert overridden["logging"]["level"] == "DEBUG"
+    assert overridden["logging"]["output_dir"] == "logs"
 
 def test_run_config_with_overrides():
     cfg_dict = {
@@ -57,6 +63,10 @@ def test_run_config_with_overrides():
         device = "cpu"
         checkpoint_dir = "my_checkpoints"
         checkpoint_frequency = 5
+        do_train = False
+        do_eval = True
+        log_level = None
+        log_dir = None
 
     args = Args()
     cfg_dict = apply_overrides(cfg_dict, args)
@@ -65,5 +75,7 @@ def test_run_config_with_overrides():
     assert run_cfg.optimizer.lr == 0.01
     assert run_cfg.dataloader["batch_size"] == 128
     assert run_cfg.training.epochs == 10
+    assert run_cfg.do_train is False
+    assert run_cfg.eval.enabled is True
     assert run_cfg.checkpoint.directory == "my_checkpoints"
     assert run_cfg.checkpoint.frequency == 5

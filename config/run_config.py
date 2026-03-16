@@ -1,26 +1,12 @@
 from __future__ import annotations
-import torch
-from typing import Any, Callable, List, Optional, Dict
-from torch import nn
-from torch.utils.data import Dataset
-from torch.optim import Optimizer
-from enum import Enum
-from pathlib import Path
-from dataclasses import dataclass, field, fields
-
-from registries import ModelRegistry
-from registries import DatasetRegistry
-from registries import OptimizerRegistry
-from registries import LossRegistry
-from registries import MetricRegistry
-from registries import SchedulerRegistry
-from callbacks.base_callback import Callback
-from log_utils import logger
+from typing import Any, List, Optional, Dict
+from dataclasses import dataclass, field
 
 
 @dataclass
 class ExperimentConfig:
     name: str = "default_experiment"
+    # tags: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -50,43 +36,53 @@ class OptimizerConfig:
 
 @dataclass
 class TrainingConfig:
+    enabled: bool = True
     epochs: int = 10
-    batch_size: int = 64
     shuffle: bool = True
+    batch_size: int = 64 # redundant with dataloader but convenient
 
 
 @dataclass
 class EvaluationConfig:
     eval_during_training: bool = True
+    enabled: bool = True
     eval_checkpoints: bool = True
     eval_frequency: int = 1
-    test_on_training_data: bool = False
+    eval_on_train_data: bool = False
 
 
 @dataclass
 class CheckpointConfig:
-    directory: Path = field(default_factory=lambda: Path("checkpoints/"))
-    name: str = "model_epoch_{epoch}"
+    directory: str = "checkpoints/"
+    name_template: str = "model_epoch_{epoch}.pt"
     frequency: int = 1
     save_metadata: bool = True
+    metadata_format: str = "pt" # pt (embedded), json, yaml, toml, ini
 
 
 @dataclass
 class ProfileConfig:
     enabled: bool = False
-    output_path: Optional[Path] = None
+    output_path: Optional[str] = None
 
 
 @dataclass
 class VisualizationConfig:
     type: List[str] = field(default_factory=lambda: ["all"])
     metrics: List[str] = field(default_factory=lambda: ["all"])
-    datasets: List[str] = field(default_factory=lambda: ["testing"])
+    datasets: List[str] = field(default_factory=lambda: ["eval"])
     num_samples: int = 10
     show: bool = False
-    output_dir: Optional[Path] = field(default_factory=lambda: Path("vis"))
+    output_dir: str = "vis"
     format: str = "png"
     layout: str = "individual"
+
+
+@dataclass
+class LoggingConfig:
+    level: str = "INFO"
+    log_file: str = "train.log"
+    output_dir: str = "results"
 
 
 @dataclass
@@ -98,7 +94,7 @@ class RunConfig:
     experiment: ExperimentConfig = field(default_factory=ExperimentConfig)
     device: str = "auto"
     dataset: DatasetConfig = field(default_factory=DatasetConfig)
-    dataloader: Dict[str, Any] = field(default_factory=dict) # Keep raw for DataLoader init
+    dataloader: Dict[str, Any] = field(default_factory=dict)
     model: ModelConfig = field(default_factory=ModelConfig)
     loss: LossConfig = field(default_factory=LossConfig)
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
@@ -108,6 +104,15 @@ class RunConfig:
     checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
     profile: ProfileConfig = field(default_factory=ProfileConfig)
     visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
+
+    @property
+    def do_train(self) -> bool:
+        return self.training.enabled
+
+    @property
+    def do_eval(self) -> bool:
+        return self.evaluation.enabled
 
     @classmethod
     def from_dict(cls, cfg: Dict[str, Any]) -> "RunConfig":
@@ -144,15 +149,19 @@ class RunConfig:
         lr = opt_params.pop("lr", 0.001)
         optimizer = OptimizerConfig(name=opt_name, lr=lr, params=opt_params)
 
-        # Profile (can be bool in YAML)
+        # Profile
         prof_raw = cfg.get("profile", False)
         if isinstance(prof_raw, bool):
             profile = ProfileConfig(enabled=prof_raw)
         else:
             profile = ProfileConfig(**prof_raw)
 
-        # Build the rest using standard dataclass fields if they match names
-        # For simplicity in this first pass, we'll manually map the main ones
+        # Eval
+        eval_raw = cfg.get("eval", cfg.get("evaluation", {}))
+        # Handle 'test_on_training_data' -> 'eval_on_train_data'
+        if "test_on_training_data" in eval_raw:
+            eval_raw["eval_on_train_data"] = eval_raw.pop("test_on_training_data")
+
         return cls(
             experiment=experiment,
             device=cfg.get("device", "auto"),
@@ -166,24 +175,17 @@ class RunConfig:
             evaluation=EvaluationConfig(**cfg.get("evaluation", {})),
             checkpoint=CheckpointConfig(**cfg.get("checkpoint", {})),
             profile=profile,
-            visualization=VisualizationConfig(**cfg.get("visualization", {}))
+            visualization=VisualizationConfig(**cfg.get("visualization", {})),
+            logging=LoggingConfig(**cfg.get("logging", {}))
         )
 
 
 @dataclass
 class RuntimeConfig:
-    """
-    Fully-resolved runtime configuration.
-    Contains objects ready to be used.
-    """
-    model: nn.Module
-    loss_fn: nn.Module
-    optimizer: Optimizer
-    train_loader: Any
-    val_loader: Any
-    device: torch.device
-    metrics: List[Callable]
+    """Fully resolved runtime objects."""
+    task: Any
+    engine: Any
     callbacks: List[Any]
     epochs: int
     profile: bool
-    # Add other runtime-specific needs here
+    # Add other runtime-specific needs here

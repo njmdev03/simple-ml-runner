@@ -3,6 +3,8 @@ from dataclasses import dataclass
 
 @dataclass
 class State:
+    # Current epoch
+    epoch: int = 0
     # Current batch number
     batch: int = 0
     # Total batches to run

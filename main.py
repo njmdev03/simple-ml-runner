@@ -1,5 +1,7 @@
 import argparse
 import torch
+import os
+import glob
 from torch.utils.data import DataLoader
 from pathlib import Path
 
@@ -8,6 +10,7 @@ from log_utils.logger_setup import setup_logging
 
 import config.loader as cl
 from config.run_config import RunConfig
+from config.path_utils import resolve_path_template, ensure_dir
 
 from tasks.classification_task import ClassificationTask
 
@@ -30,18 +33,19 @@ import models.rnn
 def setup_argparse():
     parser = argparse.ArgumentParser(description="ML Job Runner - Refactored")
     parser.add_argument("operation",
-                        choices=['batch', 'job', 'test', 'train', 'vis', 'stats'],
+                        choices=['batch', 'run', 'vis', 'stats'],
                         help="Operation to run")
 
     # Config loading
     parser.add_argument("--config", "-c", action="append", help="Config file(s) to load")
-    parser.add_argument("--silent", action="store_true", help="Print less to console")
+    parser.add_argument("--log-level", dest="log_level", help="Log level (DEBUG, INFO, WARNING, ERROR)")
+    parser.add_argument("--log-dir", dest="log_dir", help="Output directory for logs")
 
     # Behavior Flags (nested mapping)
-    parser.add_argument("--train", action="store_true", dest="do_train", default=True, help="Enable training")
+    parser.add_argument("--train", action="store_true", dest="do_train", default=None, help="Enable training")
     parser.add_argument("--dont-train", action="store_false", dest="do_train", help="Disable training")
-    parser.add_argument("--test", action="store_true", dest="do_test", default=True, help="Enable testing")
-    parser.add_argument("--dont-test", action="store_false", dest="do_test", help="Disable testing")
+    parser.add_argument("--eval", action="store_true", dest="do_eval", default=None, help="Enable evaluation")
+    parser.add_argument("--dont-eval", action="store_false", dest="do_eval", help="Disable evaluation")
 
     # Model and Hyperparameters (mapped to nested structure)
     parser.add_argument("--lr", type=float, help="Override learning rate")
@@ -61,14 +65,10 @@ def apply_overrides(cfg_dict, args):
     Apply CLI arguments to the config dictionary, handling nested structures.
     """
     if args.lr is not None:
-        # Assuming optimizer is at the root and has a name key containing the params
-        # This is a bit tricky since the new format is nested like: optimizer: { adam: { lr: ... } }
-        # We'll find the first key in optimizer and update its lr if it exists
-        if "optimizer" in cfg_dict:
-            opt_key = next(iter(cfg_dict["optimizer"]))
-            cfg_dict["optimizer"][opt_key]["lr"] = args.lr
-        else:
-            cfg_dict["optimizer"] = {"adam": {"lr": args.lr}}
+        if "optimizer" not in cfg_dict: cfg_dict["optimizer"] = {}
+        opt_key = next(iter(cfg_dict["optimizer"])) if cfg_dict["optimizer"] else "adam"
+        if opt_key not in cfg_dict["optimizer"]: cfg_dict["optimizer"][opt_key] = {}
+        cfg_dict["optimizer"][opt_key]["lr"] = args.lr
 
     if args.batch_size is not None:
         if "dataloader" not in cfg_dict: cfg_dict["dataloader"] = {}
@@ -89,6 +89,22 @@ def apply_overrides(cfg_dict, args):
         if "checkpoint" not in cfg_dict: cfg_dict["checkpoint"] = {}
         cfg_dict["checkpoint"]["frequency"] = args.checkpoint_frequency
 
+    if args.do_train is not None:
+        if "training" not in cfg_dict: cfg_dict["training"] = {}
+        cfg_dict["training"]["enabled"] = args.do_train
+
+    if args.do_eval is not None:
+        if "eval" not in cfg_dict: cfg_dict["eval"] = {}
+        cfg_dict["eval"]["enabled"] = args.do_eval
+
+    if args.log_level is not None:
+        if "logging" not in cfg_dict: cfg_dict["logging"] = {}
+        cfg_dict["logging"]["level"] = args.log_level
+
+    if args.log_dir is not None:
+        if "logging" not in cfg_dict: cfg_dict["logging"] = {}
+        cfg_dict["logging"]["output_dir"] = args.log_dir
+
     return cfg_dict
 
 
@@ -106,6 +122,11 @@ def build_runtime(run_cfg: RunConfig):
 
     # Build Loaders
     dl_params = run_cfg.dataloader.copy()
+
+    # Use training.batch_size if present and dataloader batch_size is not
+    if "batch_size" not in dl_params and run_cfg.training.batch_size:
+        dl_params["batch_size"] = run_cfg.training.batch_size
+
     shuffle = dl_params.pop("shuffle", run_cfg.training.shuffle)
     train_loader = DataLoader(train_ds, **dl_params, shuffle=shuffle)
     val_loader = DataLoader(val_ds, batch_size=dl_params.get("batch_size", 64))
@@ -139,34 +160,32 @@ def build_runtime(run_cfg: RunConfig):
     return task, device
 
 
-def main():
-    parser = setup_argparse()
-    args = parser.parse_args()
+def run_job(run_cfg: RunConfig, args):
+    from log_utils.logger_setup import setup_logging
+    import logging
 
     # -------------------------------
-    # Setup Logging
+    # Path Resolution & Dir Creation
     # -------------------------------
-    log_level = "WARNING" if args.silent else "INFO"
-    logger = setup_logging(level=log_level, log_file="train.log")
-    logger.info(f"Starting ML experiment - Operation: {args.operation}")
+    context = {
+        "experiment_name": run_cfg.experiment.name,
+        "device": run_cfg.device
+    }
 
-    # -------------------------------
-    # Load and Merge Configs
-    # -------------------------------
-    cfg_dict = {}
-    if args.config:
-        for cfile in args.config:
-            cfg_dict = cl.load_config(cfile) # This already handles 'extends' and merges
+    log_file_name = resolve_path_template(run_cfg.logging.log_file, context)
+    log_dir = resolve_path_template(run_cfg.logging.output_dir, context)
+    log_path = str(Path(log_dir) / log_file_name)
+    ensure_dir(log_path)
 
-    # Apply CLI Overrides
-    cfg_dict = apply_overrides(cfg_dict, args)
+    # Reset logging handlers to avoid duplicates in batch mode
+    root_logger = logging.getLogger("mltool")
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
 
-    # Build typed Config
-    run_cfg = RunConfig.from_dict(cfg_dict)
+    job_logger = setup_logging(level=run_cfg.logging.level, log_file=log_path)
+    job_logger.info(f"Starting Job: {run_cfg.experiment.name}")
 
-    # -------------------------------
     # Build Task & Device
-    # -------------------------------
     task, device = build_runtime(run_cfg)
 
     # -------------------------------
@@ -174,53 +193,96 @@ def main():
     # -------------------------------
     callbacks = []
     callbacks.append(EpochLogger())
+    callbacks.append(EvalLogger())
+
+    if run_cfg.checkpoint.frequency > 0:
+        checkpoint_dir = resolve_path_template(run_cfg.checkpoint.directory, context)
+        ensure_dir(checkpoint_dir)
+        callbacks.append(CheckpointCallback(
+            path=checkpoint_dir,
+            name_template=run_cfg.checkpoint.name_template,
+            metadata_format=run_cfg.checkpoint.metadata_format,
+            save_metadata=run_cfg.checkpoint.save_metadata,
+            every_n_epochs=run_cfg.checkpoint.frequency
+        ))
 
     if run_cfg.evaluation.eval_during_training:
         callbacks.append(EvaluationCallback(every_n_epochs=run_cfg.evaluation.eval_frequency))
 
-    callbacks.append(EvalLogger())
-
-    if run_cfg.checkpoint.frequency > 0:
-        callbacks.append(CheckpointCallback(
-            path=run_cfg.checkpoint.directory,
-            every_n_epochs=run_cfg.checkpoint.frequency
-        ))
-
     if run_cfg.profile.enabled:
         callbacks.append(TimeProfiler())
 
-    # -------------------------------
     # Create Engine
-    # -------------------------------
     engine = Engine(task=task, callbacks=callbacks)
 
     # -------------------------------
-    # Execution Logic
+    # Execution
     # -------------------------------
-    if args.operation == 'train':
-        if args.do_train:
-            logger.info("Starting Training phase")
-            engine.train(epochs=run_cfg.training.epochs)
+    if run_cfg.do_train:
+        job_logger.info(f"Training for {run_cfg.training.epochs} epochs")
+        engine.train(epochs=run_cfg.training.epochs)
 
-        if args.do_test:
-            logger.info("Starting Evaluation phase")
+    if run_cfg.do_eval:
+        if run_cfg.evaluation.eval_checkpoints and not run_cfg.do_train:
+            # Standalone evaluation of checkpoints
+            checkpoint_dir = resolve_path_template(run_cfg.checkpoint.directory, context)
+            checkpoints = glob.glob(os.path.join(checkpoint_dir, "*.pt"))
+            if not checkpoints:
+                job_logger.warning(f"No checkpoints found in {checkpoint_dir} for evaluation")
+                engine.evaluate()
+            else:
+                job_logger.info(f"Found {len(checkpoints)} checkpoints to evaluate")
+                for ckpt in sorted(checkpoints):
+                    job_logger.info(f"Evaluating checkpoint: {ckpt}")
+                    task.load_checkpoint(ckpt)
+
+                    # Sync engine epoch with checkpoint if possible
+                    import re
+                    match = re.search(r"epoch_(\d+)", Path(ckpt).name)
+                    if match:
+                        engine.eval_state.epoch = int(match.group(1))
+
+                    engine.evaluate()
+        else:
+            job_logger.info("Running standard evaluation")
             engine.evaluate()
 
-    elif args.operation == 'test':
-        logger.info("Starting standalone Evaluation")
-        engine.evaluate()
+    job_logger.info(f"Job {run_cfg.experiment.name} Complete")
 
-    elif args.operation == 'vis':
-        logger.info("Visualizations requested (Not fully implemented in this refactor pass)")
-        # Placeholder for visualization logic
-        pass
 
-    elif args.operation == 'stats':
-        logger.info("Statistics requested")
-        # Placeholder for stats logic
-        pass
+def main():
+    parser = setup_argparse()
+    args = parser.parse_args()
 
-    logger.info("Job Complete")
+    if args.operation == 'batch':
+        if not args.config:
+            print("Error: --config required for batch mode")
+            return
+
+        for cfile in args.config:
+            print(f"\n--- Processing Config: {cfile} ---")
+            cfg_dict = cl.load_config(cfile)
+            cfg_dict = apply_overrides(cfg_dict, args)
+            run_cfg = RunConfig.from_dict(cfg_dict)
+            run_job(run_cfg, args)
+
+    else:
+        # Single Run Mode (run, vis, stats): merge all configs
+        cfg_dict = {}
+        if args.config:
+            for cfile in args.config:
+                new_cfg = cl.load_config(cfile)
+                cfg_dict = cl.merge_dicts(cfg_dict, new_cfg)
+
+        cfg_dict = apply_overrides(cfg_dict, args)
+        run_cfg = RunConfig.from_dict(cfg_dict)
+
+        if args.operation == 'run':
+            run_job(run_cfg, args)
+        elif args.operation == 'vis':
+            print("Visualizations not fully implemented")
+        elif args.operation == 'stats':
+            print("Statistics not fully implemented")
 
 
 if __name__ == "__main__":

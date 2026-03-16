@@ -1,5 +1,4 @@
 class BaseTask:
-
     def __init__(self, model, loss_fn, optimizer, train_loader, val_loader, device="cpu", metrics=None):
         self.model = model.to(device)
         self.loss_fn = loss_fn
@@ -22,3 +21,11 @@ class BaseTask:
             results[metric.__name__] = metric(outputs, targets)
 
         return results
+
+    def load_checkpoint(self, path):
+        import torch
+        checkpoint = torch.load(path, map_location=self.device)
+        if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+            self.model.load_state_dict(checkpoint["state_dict"])
+        else:
+            self.model.load_state_dict(checkpoint)
