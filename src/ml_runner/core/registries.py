@@ -1,122 +1,51 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, Type
+
+
+
+# =========================
+# Built-in Registrations (optional to move later)
+# =========================
+
 from torch import nn, optim
 from torch.optim import lr_scheduler
 
 
-class BaseRegistry:
-    """
-    Generic base registry for storing components keyed by name.
-    Subclasses can specialize for models, datasets, optimizers, etc.
-    """
-    _registry: Dict[str, Callable] = {}
+Optimizer("adam")(optim.Adam)
+Optimizer("sgd")(optim.SGD)
+Optimizer("adamw")(optim.AdamW)
 
-    @classmethod
-    def register(cls, *names):
-        """
-        Decorator to register a class or function under one or more names.
-        """
-        def decorator(obj):
-            for name in names:
-                cls._registry[name.lower()] = obj
-            return obj
-        return decorator
-
-    @classmethod
-    def get(cls, name: str):
-        """
-        Fetch a registered object by name.
-        """
-        name = name.lower()
-        if name not in cls._registry:
-            raise ValueError(f"No component registered under name: '{name}'")
-        return cls._registry[name]
-
-    @classmethod
-    def all(cls):
-        """
-        Return all registered names.
-        """
-        return list(cls._registry.keys())
+Loss("cross_entropy")(nn.CrossEntropyLoss)
+Loss("mse")(nn.MSELoss)
+Loss("nll")(nn.NLLLoss)
 
 
-class ConfigRegistry(BaseRegistry):
-    _registry = {}
-
-
-class ModelRegistry(BaseRegistry):
-    _registry = {}
-
-
-class DatasetRegistry(BaseRegistry):
-    _registry = {}
-
-
-class OptimizerRegistry(BaseRegistry):
-    _registry = {}
-
-OptimizerRegistry.register("adam")(optim.Adam)
-OptimizerRegistry.register("sgd")(optim.SGD)
-OptimizerRegistry.register("adamw")(optim.AdamW)
-
-
-class LossRegistry(BaseRegistry):
-    _registry = {}
-
-LossRegistry.register("cross_entropy")(nn.CrossEntropyLoss)
-LossRegistry.register("mse")(nn.MSELoss)
-LossRegistry.register("nll")(nn.NLLLoss)
-
-
-class MetricRegistry(BaseRegistry):
-    _registry = {}
-
-@MetricRegistry.register("accuracy")
+@Metric("accuracy")
 def accuracy(outputs, targets):
     preds = outputs.argmax(dim=1)
     return (preds == targets).float().mean().item()
 
 
-class SchedulerRegistry(BaseRegistry):
-    _registry = {}
-
-SchedulerRegistry.register("step_lr")(lr_scheduler.StepLR)
-SchedulerRegistry.register("cosine_annealing")(lr_scheduler.CosineAnnealingLR)
+Scheduler("step_lr")(lr_scheduler.StepLR)
+Scheduler("cosine_annealing")(lr_scheduler.CosineAnnealingLR)
 
 
-class Extension:
+# =========================
+# Generic Resolver
+# =========================
+
+def resolve_component(cfg: dict, registry: Type[BaseRegistry]):
     """
-    Base class for extensions.
-    Extensions can provide custom configuration schemas and callbacks.
+    Generic factory for registry-based components.
+
+    Example:
+        {"mlp": {"input_dim": 784}}
     """
-    def get_config_class(self):
-        return None
+    if not cfg:
+        raise ValueError("Empty config passed to resolve_component")
 
-    def create_callbacks(self, run_config, context):
-        return []
-
-
-class ExtensionRegistry(BaseRegistry):
-    _registry = {}
-
-
-def resolve_component(cfg: dict, registry: BaseRegistry) -> object:
-    """
-    Generic factory to resolve any component from a registry.
-
-    cfg example for models:
-        {"MLP": {"input_dim": 784, "layers": [256, 128], "output_dim": 10}}
-
-    cfg example for Python file override:
-        {"Python": {"pyfile": "./models/custom_model.py",
-                    "model_name": "MyCustomModel",
-                    "Model_Params": {...}}}
-
-    registry: a Registry class with .get() and .all() methods
-    """
     key = next(iter(cfg))
-    params = cfg[key]
+    params = cfg[key] or {}
 
-    # Look up in registry
     cls = registry.get(key)
 
     return cls(**params)
