@@ -16,7 +16,7 @@ import ml_runner.core.config.loader as cl
 from ml_runner.core.config.run_config import RunConfig
 from ml_runner.core.config.path_utils import resolve_path_template, ensure_dir
 from ml_runner.core.log_utils import logger
-import ml_runner.extensions as extensions # Bootstrap all extensions early
+# import ml_runner.extensions as extensions # Bootstrap all extensions early
 
 from ml_runner.core.tasks.classification_task import ClassificationTask
 
@@ -30,10 +30,13 @@ from ml_runner.core.callbacks.epoch_logger import EpochLogger
 from ml_runner.core.callbacks.eval_logger import EvalLogger
 
 # Import components to register them
-import ml_runner.builtins.datasets.common_datasets
-import ml_runner.builtins.models.mlp
-import ml_runner.builtins.models.cnn
-import ml_runner.builtins.models.rnn
+# import ml_runner.builtins.datasets.common_datasets
+# import ml_runner.builtins.models.mlp
+# import ml_runner.builtins.models.cnn
+# import ml_runner.builtins.models.rnn
+
+# Load built-in extensions
+import ml_runner.extensions
 
 
 def setup_argparse():

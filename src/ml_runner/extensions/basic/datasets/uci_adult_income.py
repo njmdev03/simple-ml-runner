@@ -1,11 +1,13 @@
 import torch
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from torch.utils.data import Dataset as TorchDataset
+
 from ml_runner.core.registries import Dataset
 
 
 @Dataset("UCIAdult")
-class UCIAdultDataset(Dataset):
+class UCIAdultDataset(TorchDataset):
     """
     UCI Adult Census Income Dataset
     https://archive.ics.uci.edu/ml/datasets/adult

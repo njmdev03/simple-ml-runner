@@ -1,11 +1,12 @@
 from torchvision.datasets import OxfordIIITPet
 from torchvision import transforms
+from torch.utils.data import Dataset as TorchDataset
 
 from ml_runner.core.registries import Dataset
 
 
 @Dataset("OxfordPet")
-class OxfordPetDataset(Dataset):
+class OxfordPetDataset(TorchDataset):
     def __init__(self, split="trainval", transform=None, target_transform=None, download=True):
         self.dataset = OxfordIIITPet(
             root="./data/oxford_pet",

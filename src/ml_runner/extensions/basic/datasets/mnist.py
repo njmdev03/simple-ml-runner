@@ -1,11 +1,12 @@
 from torchvision.datasets import MNIST
 from torchvision import transforms
+from torch.utils.data import Dataset as TorchDataset
 
 from ml_runner.core.registries import Dataset
 
 
 @Dataset("MNIST")
-class MNISTDataset(Dataset):
+class MNISTDataset(TorchDataset):
     def __init__(self, train=True, download=True, root="./data/mnist", transform=None):
         self.dataset = MNIST(
             root=root,

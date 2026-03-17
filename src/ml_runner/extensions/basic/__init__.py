@@ -15,10 +15,16 @@ import ml_runner.extensions.basic.datasets.uci_adult_income
 import ml_runner.extensions.basic.metrics.accuracy
 
 # Losses
-import ml_runner.extensions.basic.losses.classification
+import ml_runner.extensions.basic.loss.torch
 
 # Optimizers
 import ml_runner.extensions.basic.optimizers.torch
 
 # Schedulers
 import ml_runner.extensions.basic.schedulers.torch
+
+# Config Parsers
+import ml_runner.extensions.basic.config_parsers.ini_parser
+import ml_runner.extensions.basic.config_parsers.json_parser
+import ml_runner.extensions.basic.config_parsers.toml_parser
+import ml_runner.extensions.basic.config_parsers.yaml_parser

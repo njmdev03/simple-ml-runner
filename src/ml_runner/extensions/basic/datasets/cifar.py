@@ -1,11 +1,12 @@
 from torchvision.datasets import CIFAR100
 from torchvision import transforms
+from torch.utils.data import Dataset as TorchDataset
 
 from ml_runner.core.registries import Dataset
 
 
 @Dataset("CIFAR100")
-class CIFAR100Dataset(Dataset):
+class CIFAR100Dataset(TorchDataset):
     def __init__(self, train=True, download=True, transform=None):
         self.dataset = CIFAR100(
             root="./data/cifar100",

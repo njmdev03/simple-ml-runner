@@ -1,11 +1,6 @@
 from pathlib import Path
 from ml_runner.core.registries import ConfigRegistry
 
-from ml_runner.core.config import yaml_parser
-from ml_runner.core.config import json_parser
-from ml_runner.core.config import toml_parser
-from ml_runner.core.config import ini_parser
-
 
 def load_file(path):
     path = Path(path)
