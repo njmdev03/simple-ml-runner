@@ -23,7 +23,7 @@ from ml_runner.core.tasks.classification_task import ClassificationTask
 from ml_runner.core.registries import ModelRegistry, DatasetRegistry, OptimizerRegistry, LossRegistry, MetricRegistry, resolve_component
 
 from ml_runner.core.callbacks.time_profiler import TimeProfiler
-from ml_runner.core.callbacks.checkpoint_callback import CheckpointCallback
+# from ml_runner.core.callbacks.checkpoint_callback import CheckpointCallback
 from ml_runner.core.callbacks.evaluation_callback import EvaluationCallback
 from ml_runner.core.callbacks.batch_logger import BatchLogger
 from ml_runner.core.callbacks.epoch_logger import EpochLogger
@@ -200,31 +200,19 @@ def run_job(run_cfg: RunConfig, args):
     # -------------------------------
     # Build Callbacks
     # -------------------------------
-    from ml_runner.core.registries import ExtensionRegistry
-
     callbacks = []
     callbacks.append(EpochLogger())
     callbacks.append(EvalLogger())
 
-    # Build from Config
-    if run_cfg.checkpoint.frequency > 0:
-        checkpoint_dir = resolve_path_template(run_cfg.checkpoint.directory, context)
-        ensure_dir(checkpoint_dir)
-        callbacks.append(CheckpointCallback(
-            path=checkpoint_dir,
-            name_template=run_cfg.checkpoint.name_template,
-            metadata_format=run_cfg.checkpoint.metadata_format,
-            every_n_epochs=run_cfg.checkpoint.frequency
-        ))
-
     if run_cfg.evaluation.eval_during_training:
         callbacks.append(EvaluationCallback(every_n_epochs=run_cfg.evaluation.eval_frequency))
 
-    # Build from Extensions
+    from ml_runner.core.registries import ExtensionRegistry
+
     for ext_name in ExtensionRegistry.all():
         ext_cls = ExtensionRegistry.get(ext_name)
         ext = ext_cls()
-        callbacks.extend(ext.create_callbacks(run_cfg, context))
+        callbacks.extend(ext.create_callbacks(run_cfg))
 
     # Create Engine
     engine = Engine(task=task, callbacks=callbacks)

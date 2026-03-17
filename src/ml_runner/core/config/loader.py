@@ -1,11 +1,11 @@
 from pathlib import Path
-from ml_runner.core.registries import ConfigRegistry
+from ml_runner.core.registries import ConfigParserRegistry
 
 
 def load_file(path):
     path = Path(path)
 
-    parser = ConfigRegistry.get(path.suffix)
+    parser = ConfigParserRegistry.get(path.suffix)
 
     return parser(path)
 

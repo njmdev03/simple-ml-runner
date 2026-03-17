@@ -1,8 +1,8 @@
 import configparser
 
-from ml_runner.core.registries import ConfigRegistry
+from ml_runner.core.registries import ConfigParser
 
-@ConfigRegistry.register(".ini")
+@ConfigParser(".ini")
 def parse_ini(path):
     parser = configparser.ConfigParser()
     parser.read(path)

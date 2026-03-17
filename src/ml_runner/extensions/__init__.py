@@ -1,1 +1,2 @@
 import ml_runner.extensions.basic
+import ml_runner.extensions.checkpoints

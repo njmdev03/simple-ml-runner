@@ -2,7 +2,7 @@ import torch
 from pathlib import Path
 from ml_runner.core.log_utils import logger
 from dataclasses import dataclass
-from .base_callback import Callback
+from ml_runner.core.callbacks.base_callback import Callback
 from ml_runner.core.config.path_utils import resolve_path_template, ensure_dir
 
 @dataclass

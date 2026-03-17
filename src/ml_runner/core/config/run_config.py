@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any, List, Optional, Dict
 from dataclasses import dataclass, field
+from ml_runner.core.registries import ConfigRegistry
 
 
 @dataclass
@@ -166,18 +167,28 @@ class RunConfig:
             eval_dict["eval_on_train_data"] = eval_dict.pop("test_on_training_data")
 
         # Extensions
+        # ext_configs = {}
+        # for name in ConfigRegistry.all():
+        #     config_cls = ConfigRegistry.get(name)
+        #     data = cfg.get(name, {})
+        #     if isinstance(data, bool):
+        #         ext_configs[name] = config_cls(enabled=data)
+        #     elif isinstance(data, dict):
+        #         ext_configs[name] = config_cls(**data)
+        #     else:
+        #         ext_configs[name] = config_cls()  # defaults
+
+        # RunConfig.from_dict
         ext_configs = {}
-        for ext_name in ExtensionRegistry.all():
-            ext_cls = ExtensionRegistry.get(ext_name)
-            ext = ext_cls()
-            conf_cls = ext.get_config_class()
-            if conf_cls and ext_name in cfg:
-                data = cfg[ext_name]
-                if isinstance(data, dict):
-                    ext_configs[ext_name] = conf_cls(**data)
-                elif isinstance(data, bool):
-                    # For simple toggle-based extensions
-                    ext_configs[ext_name] = conf_cls(enabled=data)
+        for name in ConfigRegistry.all():
+            config_cls = ConfigRegistry.get(name)  # should be the dataclass itself
+            data = cfg.get(name, {})  # get dict from config file
+            if isinstance(data, bool):
+                ext_configs[name] = config_cls(enabled=data)
+            elif isinstance(data, dict):
+                ext_configs[name] = config_cls(**data)
+            else:
+                ext_configs[name] = config_cls()  # defaults
 
         return cls(
             experiment=experiment,

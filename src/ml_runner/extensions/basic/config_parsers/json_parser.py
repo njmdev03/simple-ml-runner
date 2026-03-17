@@ -1,8 +1,8 @@
 import json
 
-from ml_runner.core.registries import ConfigRegistry
+from ml_runner.core.registries import ConfigParser
 
-@ConfigRegistry.register(".json")
+@ConfigParser(".json")
 def parse_json(path):
     with open(path) as f:
         return json.load(f)
