@@ -1,4 +1,4 @@
-from engine.eval_state import EvalState
+from ml_runner.core.engine.eval_state import EvalState
 
 def test_eval_state_sum_metrics():
     state = EvalState()

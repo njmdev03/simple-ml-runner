@@ -1,5 +1,5 @@
 import time
-from profiling.profiler import Profiler
+from ml_runner.builtins.profiling.profiler import Profiler
 
 def test_profiler_basic():
     p = Profiler()

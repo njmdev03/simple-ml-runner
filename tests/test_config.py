@@ -1,7 +1,7 @@
 import pytest
 
-from config.loader import merge_dicts
-from config.loader import load_config
+from ml_runner.core.config.loader import merge_dicts
+from ml_runner.core.config.loader import load_config
 
 
 def test_dict_merge_basic():

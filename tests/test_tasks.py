@@ -1,5 +1,5 @@
 import torch
-from tasks.classification_task import ClassificationTask
+from ml_runner.core.tasks.classification_task import ClassificationTask
 
 def test_classification_task_compute_metrics():
     model = torch.nn.Linear(10, 2)

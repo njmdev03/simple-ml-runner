@@ -1,4 +1,4 @@
-from config.run_config import RunConfig
+from ml_runner.core.config.run_config import RunConfig
 from main import apply_overrides
 
 def test_run_config_from_dict_basic():
@@ -18,7 +18,7 @@ def test_run_config_from_dict_basic():
     assert run_cfg.dataset.name == "MNIST"
     assert run_cfg.training.epochs == 12
     assert run_cfg.do_train is True
-    assert run_cfg.eval.eval_frequency == 2
+    assert run_cfg.evaluation.eval_frequency == 2
 
 def test_apply_overrides():
     cfg_dict = {
@@ -76,6 +76,6 @@ def test_run_config_with_overrides():
     assert run_cfg.dataloader["batch_size"] == 128
     assert run_cfg.training.epochs == 10
     assert run_cfg.do_train is False
-    assert run_cfg.eval.enabled is True
+    assert run_cfg.evaluation.enabled is True
     assert run_cfg.checkpoint.directory == "my_checkpoints"
     assert run_cfg.checkpoint.frequency == 5

@@ -1,5 +1,5 @@
 import torch
-from engine.engine import Engine
+from ml_runner.core.engine.engine import Engine
 from unittest.mock import MagicMock
 
 class MockTask:

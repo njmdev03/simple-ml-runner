@@ -1,4 +1,4 @@
-from callbacks.base_callback import Callback
+from ml_runner.core.callbacks.base_callback import Callback
 from unittest.mock import MagicMock
 
 def test_callback_filtering():

@@ -1,4 +1,4 @@
-from config.loader import merge_dicts
+from ml_runner.core.config.loader import merge_dicts
 
 def test_deep_merge_basic():
     base = {

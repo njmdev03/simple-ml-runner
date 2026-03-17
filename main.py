@@ -1,35 +1,39 @@
 import argparse
 import torch
 import os
+import sys
 import glob
 from torch.utils.data import DataLoader
 from pathlib import Path
 
-from engine.engine import Engine
-from log_utils.logger_setup import setup_logging
+# Add src to sys.path to allow importing ml_runner
+sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-import config.loader as cl
-from config.run_config import RunConfig
-from config.path_utils import resolve_path_template, ensure_dir
-from log_utils import logger
-import extensions # Bootstrap all extensions early
+from ml_runner.core.engine.engine import Engine
+from ml_runner.core.log_utils.logger_setup import setup_logging
 
-from tasks.classification_task import ClassificationTask
+import ml_runner.core.config.loader as cl
+from ml_runner.core.config.run_config import RunConfig
+from ml_runner.core.config.path_utils import resolve_path_template, ensure_dir
+from ml_runner.core.log_utils import logger
+import ml_runner.extensions as extensions # Bootstrap all extensions early
 
-from registries import ModelRegistry, DatasetRegistry, OptimizerRegistry, LossRegistry, MetricRegistry, resolve_component
+from ml_runner.core.tasks.classification_task import ClassificationTask
 
-from callbacks.time_profiler import TimeProfiler
-from callbacks.checkpoint_callback import CheckpointCallback
-from callbacks.evaluation_callback import EvaluationCallback
-from callbacks.batch_logger import BatchLogger
-from callbacks.epoch_logger import EpochLogger
-from callbacks.eval_logger import EvalLogger
+from ml_runner.core.registries import ModelRegistry, DatasetRegistry, OptimizerRegistry, LossRegistry, MetricRegistry, resolve_component
+
+from ml_runner.core.callbacks.time_profiler import TimeProfiler
+from ml_runner.core.callbacks.checkpoint_callback import CheckpointCallback
+from ml_runner.core.callbacks.evaluation_callback import EvaluationCallback
+from ml_runner.core.callbacks.batch_logger import BatchLogger
+from ml_runner.core.callbacks.epoch_logger import EpochLogger
+from ml_runner.core.callbacks.eval_logger import EvalLogger
 
 # Import components to register them
-import datasets.common_datasets
-import models.mlp
-import models.cnn
-import models.rnn
+import ml_runner.builtins.datasets.common_datasets
+import ml_runner.builtins.models.mlp
+import ml_runner.builtins.models.cnn
+import ml_runner.builtins.models.rnn
 
 
 def setup_argparse():
@@ -163,7 +167,7 @@ def build_runtime(run_cfg: RunConfig):
 
 
 def run_job(run_cfg: RunConfig, args):
-    from log_utils.logger_setup import setup_logging
+    from ml_runner.core.log_utils.logger_setup import setup_logging
     import logging
 
     # -------------------------------
@@ -193,7 +197,7 @@ def run_job(run_cfg: RunConfig, args):
     # -------------------------------
     # Build Callbacks
     # -------------------------------
-    from registries import ExtensionRegistry
+    from ml_runner.core.registries import ExtensionRegistry
 
     callbacks = []
     callbacks.append(EpochLogger())
