@@ -1,8 +1,8 @@
 import torch.nn as nn
-from ml_runner.core.registries import ModelRegistry
+from ml_runner.core.registries import Model
 
 
-@ModelRegistry.register("CNN")
+@Model("CNN")
 class SimpleCNN(nn.Module):
     def __init__(self, in_channels=1, num_classes=10):
         super().__init__()

@@ -1,8 +1,8 @@
 import torch.nn as nn
-from ml_runner.core.registries import ModelRegistry
+from ml_runner.core.registries import Model
 
 
-@ModelRegistry.register("MLP")
+@Model("MLP")
 class MLP(nn.Module):
     def __init__(self, input_dim: int, layers: list, output_dim: int):
         """

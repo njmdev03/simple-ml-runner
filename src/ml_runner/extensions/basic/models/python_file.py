@@ -2,10 +2,10 @@
 import importlib.util
 import sys
 from pathlib import Path
-from ml_runner.core.registries import ModelRegistry
+from ml_runner.core.registries import Model
 
 
-@ModelRegistry.register("Python")
+@Model("Python")
 class PythonModel:
     """
     Wrapper for dynamically loading a model from a Python file.

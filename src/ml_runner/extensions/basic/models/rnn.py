@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
-from ml_runner.core.registries import ModelRegistry
+from ml_runner.core.registries import Model
 
 
-@ModelRegistry.register("RNN")
+@Model("RNN")
 class SimpleRNN(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size, rnn_type='GRU', dropout=0.0):
         """
