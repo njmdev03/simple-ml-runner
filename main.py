@@ -13,10 +13,12 @@ from ml_runner.core.engine.engine import Engine
 from ml_runner.core.log_utils.logger_setup import setup_logging
 
 import ml_runner.core.config.loader as cl
-from ml_runner.core.config.run_config import RunConfig
+from ml_runner.core.config.schema import RunConfig
 from ml_runner.core.config.path_utils import resolve_path_template, ensure_dir
 from ml_runner.core.log_utils import logger
 # import ml_runner.extensions as extensions # Bootstrap all extensions early
+
+from ml_runner.core.extensions.extension_manager import ExtensionManager
 
 from ml_runner.core.tasks.classification_task import ClassificationTask
 
@@ -30,11 +32,6 @@ from ml_runner.core.callbacks.epoch_logger import EpochLogger
 from ml_runner.core.callbacks.eval_logger import EvalLogger
 
 # Import components to register them
-# import ml_runner.builtins.datasets.common_datasets
-# import ml_runner.builtins.models.mlp
-# import ml_runner.builtins.models.cnn
-# import ml_runner.builtins.models.rnn
-
 # Load built-in extensions
 import ml_runner.extensions
 
@@ -75,9 +72,7 @@ def apply_overrides(cfg_dict, args):
     """
     if args.lr is not None:
         if "optimizer" not in cfg_dict: cfg_dict["optimizer"] = {}
-        opt_key = next(iter(cfg_dict["optimizer"])) if cfg_dict["optimizer"] else "adam"
-        if opt_key not in cfg_dict["optimizer"]: cfg_dict["optimizer"][opt_key] = {}
-        cfg_dict["optimizer"][opt_key]["lr"] = args.lr
+        cfg_dict["optimizer"]["lr"] = args.lr
 
     if args.batch_size is not None:
         if "dataloader" not in cfg_dict: cfg_dict["dataloader"] = {}
@@ -169,7 +164,7 @@ def build_runtime(run_cfg: RunConfig):
     return task, device
 
 
-def run_job(run_config: RunConfig, args):
+def run_job(run_config: RunConfig, args, ext_manager: ExtensionManager):
     from ml_runner.core.log_utils.logger_setup import setup_logging
     import logging
 
@@ -209,39 +204,7 @@ def run_job(run_config: RunConfig, args):
 
     from ml_runner.core.registries import ExtensionRegistry
 
-    # for ext_name in ExtensionRegistry.all():
-    #     ext_cls = ExtensionRegistry.get(ext_name)
-    #     ext = ext_cls(
-    #         global_config=run_config,
-    #         configs=
-    #     )
-    #     callbacks.extend(ext.create_callbacks())
-
-    # extensions = []
-
-    # for name in ExtensionRegistry.all():
-    #     ext_cls = ExtensionRegistry.get(name)
-
-    #     config_map = {}
-
-    #     for cfg_key, config_cls in getattr(ext_cls, "_config_classes", {}).items():
-    #         data = cfg.get(cfg_key, {})
-
-    #         if isinstance(data, bool):
-    #             config_map[cfg_key] = config_cls(enabled=data)
-    #         elif isinstance(data, dict):
-    #             config_map[cfg_key] = config_cls(**data)
-    #         else:
-    #             config_map[cfg_key] = config_cls()
-
-    #     # Decide what to pass
-    #     if len(config_map) == 1:
-    #         config = next(iter(config_map.values()))
-    #         ext = ext_cls(global_config=run_config, config=config)
-    #     else:
-    #         ext = ext_cls(global_config=run_config, configs=config_map)
-
-    #     extensions.append(ext)
+    callbacks.extend(ext_manager.create_callbacks(config=run_config))
 
     # Create Engine
     engine = Engine(task=task, callbacks=callbacks)
@@ -249,31 +212,36 @@ def run_job(run_config: RunConfig, args):
     # -------------------------------
     # Execution
     # -------------------------------
-    if run_config.do_train:
+    if run_config.training.enabled:
         job_logger.info(f"Training for {run_config.training.epochs} epochs")
         engine.train(epochs=run_config.training.epochs)
 
-    if run_config.do_eval:
-        if run_config.evaluation.eval_checkpoints and not run_config.do_train:
+    if run_config.evaluation.enabled:
+        if run_config.evaluation.eval_checkpoints and not run_config.training.enabled:
             # Standalone evaluation of checkpoints
-            checkpoint_dir = resolve_path_template(run_config.checkpoint.directory, context)
-            checkpoints = glob.glob(os.path.join(checkpoint_dir, "*.pt"))
-            if not checkpoints:
-                job_logger.warning(f"No checkpoints found in {checkpoint_dir} for evaluation")
+            checkpoint_cfg = run_config.extensions.get("checkpoints")
+            if not checkpoint_cfg or not checkpoint_cfg.enabled:
+                job_logger.warning("No checkpoints extension configured for evaluation")
                 engine.evaluate()
             else:
-                job_logger.info(f"Found {len(checkpoints)} checkpoints to evaluate")
-                for ckpt in sorted(checkpoints):
-                    job_logger.info(f"Evaluating checkpoint: {ckpt}")
-                    task.load_checkpoint(ckpt)
-
-                    # Sync engine epoch with checkpoint if possible
-                    import re
-                    match = re.search(r"epoch_(\d+)", Path(ckpt).name)
-                    if match:
-                        engine.eval_state.epoch = int(match.group(1))
-
+                checkpoint_dir = resolve_path_template(checkpoint_cfg.directory, context)
+                checkpoints = glob.glob(os.path.join(checkpoint_dir, "*.pt"))
+                if not checkpoints:
+                    job_logger.warning(f"No checkpoints found in {checkpoint_dir} for evaluation")
                     engine.evaluate()
+                else:
+                    job_logger.info(f"Found {len(checkpoints)} checkpoints to evaluate")
+                    for ckpt in sorted(checkpoints):
+                        job_logger.info(f"Evaluating checkpoint: {ckpt}")
+                        task.load_checkpoint(ckpt)
+
+                        # Sync engine epoch with checkpoint if possible
+                        import re
+                        match = re.search(r"epoch_(\d+)", Path(ckpt).name)
+                        if match:
+                            engine.eval_state.epoch = int(match.group(1))
+
+                        engine.evaluate()
         else:
             job_logger.info("Running standard evaluation")
             engine.evaluate()
@@ -294,8 +262,14 @@ def main():
             print(f"\n--- Processing Config: {cfile} ---")
             cfg_dict = cl.load_config(cfile)
             cfg_dict = apply_overrides(cfg_dict, args)
-            run_cfg = RunConfig.from_dict(cfg_dict)
-            run_job(run_cfg, args)
+            ext_manager = ExtensionManager()
+            ext_cfg_classes = ext_manager.get_config_classes()
+
+            run_cfg = RunConfig.from_dict(cfg_dict, extension_config_classes=ext_cfg_classes)
+
+            ext_manager.discover_and_construct(run_cfg)
+
+            run_job(run_cfg, args, ext_manager)
 
     else:
         # Single Run Mode (run, vis, stats): merge all configs
@@ -306,10 +280,15 @@ def main():
                 cfg_dict = cl.merge_dicts(cfg_dict, new_cfg)
 
         cfg_dict = apply_overrides(cfg_dict, args)
-        run_cfg = RunConfig.from_dict(cfg_dict)
+        ext_manager = ExtensionManager()
+        ext_cfg_classes = ext_manager.get_config_classes()
+
+        run_cfg = RunConfig.from_dict(cfg_dict, extension_config_classes=ext_cfg_classes)
+
+        ext_manager.discover_and_construct(run_cfg)
 
         if args.operation == 'run':
-            run_job(run_cfg, args)
+            run_job(run_cfg, args, ext_manager)
         elif args.operation == 'vis':
             print("Visualizations not fully implemented")
         elif args.operation == 'stats':

@@ -12,7 +12,7 @@ def test_config_registry():
     assert ConfigRegistry.get(".test") == dummy_parser
     assert ConfigRegistry.get(".TEST") == dummy_parser
 
-    with pytest.raises(ValueError, match="No component registered"):
+    with pytest.raises(ValueError, match="no component registered"):
         ConfigRegistry.get(".unknown")
 
 def test_config_multiple_extensions():

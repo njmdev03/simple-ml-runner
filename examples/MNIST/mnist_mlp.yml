@@ -4,7 +4,8 @@ experiment:
 device: auto
 
 dataset:
-  MNIST:
+  name: MNIST
+  params:
     root: ./data
     download: true
 
@@ -13,17 +14,18 @@ dataloader:
   shuffle: true
 
 model:
-  MLP:
+  name: MLP
+  params:
     input_dim: 784
     layers: [256, 128]
     output_dim: 10
 
 loss:
-  cross_entropy: {}
+  name: cross_entropy
 
 optimizer:
-  adam:
-    lr: 0.001
+  name: adam
+  lr: 0.001
 
 metrics:
   - accuracy
@@ -37,14 +39,15 @@ evaluation:
   eval_checkpoints: true
   eval_frequency: 1
 
-checkpoint:
-  directory: "checkpoints/{experiment_name}/{date:%Y%m%d}"
-  name_template: "model_epoch_{epoch}.pt"
-  frequency: 1
-
 logging:
   output_dir: "results/{experiment_name}"
   log_file: "run_{timestamp}.log"
   level: INFO
 
 profile: true
+
+extensions:
+  checkpoints:
+    directory: "checkpoints/{experiment_name}/{date:%Y%m%d}"
+    name_template: "model_epoch_{epoch}.pt"
+    frequency: 1

@@ -1,11 +1,12 @@
+from typing import Any, Optional
+
+from ml_runner.core.config.schema import RunConfig
+
+
 class BaseExtension:
     """
     Base class for all extensions.
     Can optionally define config schemas and/or callbacks.
     """
-    def __init__(self, global_config, config=None):
-        self.global_config = global_config
-        self.config = config
-
-    def create_callbacks(self):
+    def create_callbacks(self, global_config: RunConfig, config: Optional[Any] = None):
         return []

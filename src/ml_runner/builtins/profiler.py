@@ -1,7 +1,9 @@
-from ml_runner.core.registries import Extension, ExtensionRegistry
+from ml_runner.core.registries import Extension
 from ml_runner.core.callbacks.profiler_callback import TorchProfilerCallback
+from ml_runner.core.extensions.base_extension import BaseExtension
 from dataclasses import dataclass
 from ml_runner.core.config.path_utils import resolve_path_template
+
 
 @dataclass
 class ProfilerConfig:
@@ -12,21 +14,21 @@ class ProfilerConfig:
     active: int = 3
     repeat: int = 1
 
-class ProfilerExtension(Extension):
-    def get_config_class(self):
-        return ProfilerConfig
 
-    def create_callbacks(self, run_config, context):
-        cfg = run_config.extensions.get("profiler")
-        if cfg and cfg.enabled:
-            out_dir = resolve_path_template(cfg.output_dir, context)
+@Extension("profiler", config_class=ProfilerConfig)
+class ProfilerExtension(BaseExtension):
+    def create_callbacks(self, global_config, config):
+        if config and config.enabled:
+            context = {
+                "experiment_name": global_config.experiment.name,
+                "device": global_config.device
+            }
+            out_dir = resolve_path_template(config.output_dir, context)
             return [TorchProfilerCallback(
                 output_dir=out_dir,
-                wait=cfg.wait,
-                warmup=cfg.warmup,
-                active=cfg.active,
-                repeat=cfg.repeat
+                wait=config.wait,
+                warmup=config.warmup,
+                active=config.active,
+                repeat=config.repeat
             )]
         return []
-
-ExtensionRegistry.register("profiler")(ProfilerExtension)

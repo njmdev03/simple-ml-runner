@@ -1,28 +1,33 @@
-from ml_runner.core.config.run_config import RunConfig
+from ml_runner.core.config.schema import RunConfig
 from main import apply_overrides
 
 def test_run_config_from_dict_basic():
     cfg_dict = {
         "experiment": {"name": "test_exp"},
         "device": "cpu",
-        "dataset": {"MNIST": {"root": "./data"}},
-        "model": {"MLP": {"input_dim": 784}},
+        "dataset": {"name": "MNIST", "params": {"root": "./data"}},
+        "model": {"name": "MLP", "params": {"input_dim": 784}},
         "training": {"epochs": 12, "enabled": True},
-        "eval": {"enabled": True, "eval_frequency": 2}
+        "evaluation": {"enabled": True, "eval_frequency": 2}
     }
 
-    run_cfg = RunConfig.from_dict(cfg_dict)
+    from ml_runner.core.extensions.extension_manager import ExtensionManager
+    ext_manager = ExtensionManager()
+    ext_cfg_classes = ext_manager.get_config_classes()
+
+    run_cfg = RunConfig.from_dict(cfg_dict, extension_config_classes=ext_cfg_classes)
+
 
     assert run_cfg.experiment.name == "test_exp"
     assert run_cfg.device == "cpu"
     assert run_cfg.dataset.name == "MNIST"
     assert run_cfg.training.epochs == 12
-    assert run_cfg.do_train is True
+    assert run_cfg.training.enabled is True
     assert run_cfg.evaluation.eval_frequency == 2
 
 def test_apply_overrides():
     cfg_dict = {
-        "optimizer": {"adam": {"lr": 0.001}},
+        "optimizer": {"name": "adam", "lr": 0.001},
         "training": {"epochs": 5, "enabled": False}
     }
 
@@ -41,7 +46,7 @@ def test_apply_overrides():
     args = Args()
     overridden = apply_overrides(cfg_dict, args)
 
-    assert overridden["optimizer"]["adam"]["lr"] == 0.01
+    assert overridden["optimizer"]["lr"] == 0.01
     assert overridden["dataloader"]["batch_size"] == 128
     assert overridden["training"]["epochs"] == 5 # Not overridden
     assert overridden["training"]["enabled"] is True
@@ -52,7 +57,7 @@ def test_apply_overrides():
 
 def test_run_config_with_overrides():
     cfg_dict = {
-        "optimizer": {"adam": {"lr": 0.001}},
+        "optimizer": {"name": "adam", "lr": 0.001},
         "training": {"epochs": 5}
     }
 
@@ -69,13 +74,17 @@ def test_run_config_with_overrides():
         log_dir = None
 
     args = Args()
+    from ml_runner.core.extensions.extension_manager import ExtensionManager
+    ext_manager = ExtensionManager()
+    ext_cfg_classes = ext_manager.get_config_classes()
+
     cfg_dict = apply_overrides(cfg_dict, args)
-    run_cfg = RunConfig.from_dict(cfg_dict)
+    run_cfg = RunConfig.from_dict(cfg_dict, extension_config_classes=ext_cfg_classes)
 
     assert run_cfg.optimizer.lr == 0.01
     assert run_cfg.dataloader["batch_size"] == 128
     assert run_cfg.training.epochs == 10
-    assert run_cfg.do_train is False
+    assert run_cfg.training.enabled is False
     assert run_cfg.evaluation.enabled is True
-    assert run_cfg.checkpoint.directory == "my_checkpoints"
-    assert run_cfg.checkpoint.frequency == 5
+    assert run_cfg.extensions["checkpoints"].directory == "my_checkpoints"
+    assert run_cfg.extensions["checkpoints"].frequency == 5
