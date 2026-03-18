@@ -53,15 +53,6 @@ class EvaluationConfig:
 
 
 @dataclass
-class CheckpointConfig:
-    directory: str = "checkpoints/"
-    name_template: str = "model_epoch_{epoch}.pt"
-    frequency: int = 1
-    save_metadata: bool = True
-    metadata_format: str = "pt" # pt (embedded), json, yaml, toml, ini
-
-
-@dataclass
 class ProfileConfig:
     enabled: bool = False
     output_path: Optional[str] = None
@@ -102,7 +93,7 @@ class RunConfig:
     metrics: List[str] = field(default_factory=lambda: ["accuracy"])
     training: TrainingConfig = field(default_factory=TrainingConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
-    checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
+    # checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
     profile: ProfileConfig = field(default_factory=ProfileConfig)
     visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
@@ -166,31 +157,46 @@ class RunConfig:
         if "test_on_training_data" in eval_dict:
             eval_dict["eval_on_train_data"] = eval_dict.pop("test_on_training_data")
 
-        # Extensions
-        # ext_configs = {}
-        # for name in ConfigRegistry.all():
-        #     config_cls = ConfigRegistry.get(name)
-        #     data = cfg.get(name, {})
-        #     if isinstance(data, bool):
-        #         ext_configs[name] = config_cls(enabled=data)
-        #     elif isinstance(data, dict):
-        #         ext_configs[name] = config_cls(**data)
-        #     else:
-        #         ext_configs[name] = config_cls()  # defaults
+        from dataclasses import is_dataclass, fields
 
-        # RunConfig.from_dict
-        ext_configs = {}
-        for name in ConfigRegistry.all():
-            config_cls = ConfigRegistry.get(name)  # should be the dataclass itself
-            data = cfg.get(name, {})  # get dict from config file
-            if isinstance(data, bool):
-                ext_configs[name] = config_cls(enabled=data)
-            elif isinstance(data, dict):
-                ext_configs[name] = config_cls(**data)
+        def build_dataclass(cls, data: dict):
+            kwargs = {}
+
+            for f in fields(cls):
+                value = data.get(f.name)
+
+                if is_dataclass(f.type) and isinstance(value, dict):
+                    kwargs[f.name] = build_dataclass(f.type, value)
+                elif value is not None:
+                    kwargs[f.name] = value
+
+            return cls(**kwargs)
+
+        ext_instances = {}
+
+        for name in ExtensionRegistry.all():
+            ext_cls = ExtensionRegistry.get(name)
+
+            config_cls = getattr(ext_cls, "Config", None)
+
+            if config_cls is None:
+                # No config → just construct
+                ext = ext_cls(global_config=None, config=None)
             else:
-                ext_configs[name] = config_cls()  # defaults
+                raw = cfg.get(name, {})
 
-        return cls(
+                if isinstance(raw, bool):
+                    config = config_cls(enabled=raw)
+                elif isinstance(raw, dict):
+                    config = build_dataclass(config_cls, raw)
+                else:
+                    config = config_cls()
+
+                ext = ext_cls(global_config=None, config=config)
+
+            ext_instances[name] = ext
+
+        config = cls(
             experiment=experiment,
             device=cfg.get("device", "auto"),
             dataset=dataset,
@@ -201,9 +207,16 @@ class RunConfig:
             metrics=cfg.get("metrics", ["accuracy"]),
             training=TrainingConfig(**cfg.get("training", {})),
             evaluation=EvaluationConfig(**eval_dict),
-            checkpoint=CheckpointConfig(**cfg.get("checkpoint", {})),
+            # checkpoint=CheckpointConfig(**cfg.get("checkpoint", {})),
             profile=profile,
             visualization=VisualizationConfig(**cfg.get("visualization", {})),
             logging=LoggingConfig(**cfg.get("logging", {})),
-            extensions=ext_configs
+            extensions={}
         )
+
+        for ext in ext_instances.values():
+            ext.global_config = config
+
+        config.extensions = ext_instances
+
+        return config

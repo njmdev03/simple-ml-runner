@@ -169,7 +169,7 @@ def build_runtime(run_cfg: RunConfig):
     return task, device
 
 
-def run_job(run_cfg: RunConfig, args):
+def run_job(run_config: RunConfig, args):
     from ml_runner.core.log_utils.logger_setup import setup_logging
     import logging
 
@@ -177,12 +177,12 @@ def run_job(run_cfg: RunConfig, args):
     # Path Resolution & Dir Creation
     # -------------------------------
     context = {
-        "experiment_name": run_cfg.experiment.name,
-        "device": run_cfg.device
+        "experiment_name": run_config.experiment.name,
+        "device": run_config.device
     }
 
-    log_file_name = resolve_path_template(run_cfg.logging.log_file, context)
-    log_dir = resolve_path_template(run_cfg.logging.output_dir, context)
+    log_file_name = resolve_path_template(run_config.logging.log_file, context)
+    log_dir = resolve_path_template(run_config.logging.output_dir, context)
     log_path = str(Path(log_dir) / log_file_name)
     ensure_dir(log_path)
 
@@ -191,11 +191,11 @@ def run_job(run_cfg: RunConfig, args):
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
 
-    job_logger = setup_logging(level=run_cfg.logging.level, log_file=log_path)
-    job_logger.info(f"Starting Job: {run_cfg.experiment.name}")
+    job_logger = setup_logging(level=run_config.logging.level, log_file=log_path)
+    job_logger.info(f"Starting Job: {run_config.experiment.name}")
 
     # Build Task & Device
-    task, device = build_runtime(run_cfg)
+    task, device = build_runtime(run_config)
 
     # -------------------------------
     # Build Callbacks
@@ -204,15 +204,44 @@ def run_job(run_cfg: RunConfig, args):
     callbacks.append(EpochLogger())
     callbacks.append(EvalLogger())
 
-    if run_cfg.evaluation.eval_during_training:
-        callbacks.append(EvaluationCallback(every_n_epochs=run_cfg.evaluation.eval_frequency))
+    if run_config.evaluation.eval_during_training:
+        callbacks.append(EvaluationCallback(every_n_epochs=run_config.evaluation.eval_frequency))
 
     from ml_runner.core.registries import ExtensionRegistry
 
-    for ext_name in ExtensionRegistry.all():
-        ext_cls = ExtensionRegistry.get(ext_name)
-        ext = ext_cls()
-        callbacks.extend(ext.create_callbacks(run_cfg))
+    # for ext_name in ExtensionRegistry.all():
+    #     ext_cls = ExtensionRegistry.get(ext_name)
+    #     ext = ext_cls(
+    #         global_config=run_config,
+    #         configs=
+    #     )
+    #     callbacks.extend(ext.create_callbacks())
+
+    # extensions = []
+
+    # for name in ExtensionRegistry.all():
+    #     ext_cls = ExtensionRegistry.get(name)
+
+    #     config_map = {}
+
+    #     for cfg_key, config_cls in getattr(ext_cls, "_config_classes", {}).items():
+    #         data = cfg.get(cfg_key, {})
+
+    #         if isinstance(data, bool):
+    #             config_map[cfg_key] = config_cls(enabled=data)
+    #         elif isinstance(data, dict):
+    #             config_map[cfg_key] = config_cls(**data)
+    #         else:
+    #             config_map[cfg_key] = config_cls()
+
+    #     # Decide what to pass
+    #     if len(config_map) == 1:
+    #         config = next(iter(config_map.values()))
+    #         ext = ext_cls(global_config=run_config, config=config)
+    #     else:
+    #         ext = ext_cls(global_config=run_config, configs=config_map)
+
+    #     extensions.append(ext)
 
     # Create Engine
     engine = Engine(task=task, callbacks=callbacks)
@@ -220,14 +249,14 @@ def run_job(run_cfg: RunConfig, args):
     # -------------------------------
     # Execution
     # -------------------------------
-    if run_cfg.do_train:
-        job_logger.info(f"Training for {run_cfg.training.epochs} epochs")
-        engine.train(epochs=run_cfg.training.epochs)
+    if run_config.do_train:
+        job_logger.info(f"Training for {run_config.training.epochs} epochs")
+        engine.train(epochs=run_config.training.epochs)
 
-    if run_cfg.do_eval:
-        if run_cfg.evaluation.eval_checkpoints and not run_cfg.do_train:
+    if run_config.do_eval:
+        if run_config.evaluation.eval_checkpoints and not run_config.do_train:
             # Standalone evaluation of checkpoints
-            checkpoint_dir = resolve_path_template(run_cfg.checkpoint.directory, context)
+            checkpoint_dir = resolve_path_template(run_config.checkpoint.directory, context)
             checkpoints = glob.glob(os.path.join(checkpoint_dir, "*.pt"))
             if not checkpoints:
                 job_logger.warning(f"No checkpoints found in {checkpoint_dir} for evaluation")
@@ -249,7 +278,7 @@ def run_job(run_cfg: RunConfig, args):
             job_logger.info("Running standard evaluation")
             engine.evaluate()
 
-    job_logger.info(f"Job {run_cfg.experiment.name} Complete")
+    job_logger.info(f"Job {run_config.experiment.name} Complete")
 
 
 def main():
