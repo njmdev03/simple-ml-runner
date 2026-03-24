@@ -1,5 +1,7 @@
-from .state import State
 from dataclasses import dataclass, field
+
+from ml_runner.core.engine.state import State
+
 
 @dataclass
 class EvalState(State):

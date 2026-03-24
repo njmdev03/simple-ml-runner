@@ -3,6 +3,8 @@ experiment:
 
 device: auto
 
+task: classification
+
 dataset:
   name: MNIST
   params:
@@ -27,17 +29,16 @@ optimizer:
   name: adam
   lr: 0.001
 
-metrics:
-  - accuracy
-
-training:
-  enabled: true
-  epochs: 1
-
 evaluation:
   enabled: true
   eval_checkpoints: true
   eval_frequency: 1
+  metrics:
+    - accuracy
+
+training:
+  enabled: true
+  epochs: 10
 
 logging:
   output_dir: "results/{experiment_name}"
@@ -48,6 +49,6 @@ profile: true
 
 extensions:
   checkpoints:
-    directory: "checkpoints/{experiment_name}/{date:%Y%m%d}"
+    directory: "checkpoints/{experiment_name}"
     name_template: "model_epoch_{epoch}.pt"
     frequency: 1

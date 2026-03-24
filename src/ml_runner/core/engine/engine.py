@@ -1,12 +1,17 @@
 import torch
 from enum import Enum
+from typing import Union
 
-from .train_state import TrainState
-from .eval_state import EvalState
-from .metadata import MetadataManager
+from ml_runner.core.engine.train_state import TrainState
+from ml_runner.core.engine.eval_state import EvalState
+from ml_runner.core.engine.event_manager import EventManager
 
 
 class EngineEvent(Enum):
+    # Job lifecycle
+    JOB_START = "on_job_start"
+    JOB_END = "on_job_end"
+
     # Training lifecycle
     TRAIN_START = "on_train_start"
     TRAIN_END = "on_train_end"
@@ -30,24 +35,30 @@ class Engine:
     def __init__(
         self,
         task,
-        callbacks=None,
+        event_manager=None,
     ):
 
         self.task = task
         self.model = task.model
-        self.callbacks = callbacks or []
 
         self.train_state = TrainState()
         self.eval_state = EvalState()
 
-        self.metadata = MetadataManager()
+        # Use provided EventManager or create a new empty one
+        self.event_manager = event_manager or EventManager()
 
-    def _trigger(self, event: EngineEvent):
-        for cb in self.callbacks:
-            method = getattr(cb, event.value, None)
-            if method:
-                # print(f"trigger {event.name} {event.value} {method} {cb}")
-                method(self) # self
+    def _trigger(self, event: Union[EngineEvent, str], **kwargs):
+        """
+        Dispatches an event over the event bus.
+        The current engine instance is automatically added to kwargs.
+        """
+        self.event_manager.emit(event, engine=self, **kwargs)
+
+    def trigger(self, event, **kwargs):
+        """
+        Dispatches an event over the event bus.
+        """
+        self.event_manager.emit(event, **kwargs)
 
     def train(self, epochs):
         self.train_state.epochs = epochs
@@ -87,8 +98,6 @@ class Engine:
                 self._trigger(EngineEvent.BATCH_END)
 
             self._trigger(EngineEvent.EPOCH_END)
-            
-            self.metadata.flush()
 
             # Reset training state, keeping total epochs count
             epochs_t = self.train_state.epochs
@@ -134,6 +143,4 @@ class Engine:
 
         self._trigger(EngineEvent.EVAL_END)
 
-        self.metadata.flush()
-
-        self.eval_state = EvalState()
+        self.eval_state = EvalState()

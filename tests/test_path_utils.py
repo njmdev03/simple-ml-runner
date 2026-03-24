@@ -1,4 +1,4 @@
-from ml_runner.core.config.path_utils import resolve_path_template
+from ml_runner.core.utils.path_utils import resolve_path_template
 import datetime
 
 def test_resolve_path_template_basic():

@@ -1,6 +1,7 @@
 from typing import Optional, Any
 from dataclasses import dataclass
 
+
 @dataclass
 class State:
     # Current epoch

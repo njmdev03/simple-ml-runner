@@ -1,5 +1,6 @@
 import time
 
+
 class Timer:
     """
     A simple timer with pause/resume capability.

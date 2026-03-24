@@ -1,6 +1,6 @@
 from typing import Type
 
-from .base import BaseRegistry
+from ml_runner.core.registries.base import BaseRegistry
 
 
 class ExtensionRegistry(BaseRegistry):

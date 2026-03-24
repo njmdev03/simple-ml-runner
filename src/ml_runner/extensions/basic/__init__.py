@@ -28,3 +28,6 @@ import ml_runner.extensions.basic.config_parsers.ini_parser
 import ml_runner.extensions.basic.config_parsers.json_parser
 import ml_runner.extensions.basic.config_parsers.toml_parser
 import ml_runner.extensions.basic.config_parsers.yaml_parser
+
+# Tasks
+import ml_runner.extensions.basic.tasks.classification_task

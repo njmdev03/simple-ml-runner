@@ -14,15 +14,13 @@ from ml_runner.core.log_utils.logger_setup import setup_logging
 
 import ml_runner.core.config.loader as cl
 from ml_runner.core.config.schema import RunConfig
-from ml_runner.core.config.path_utils import resolve_path_template, ensure_dir
+from ml_runner.core.utils.path_utils import resolve_path_template, ensure_dir
 from ml_runner.core.log_utils import logger
 # import ml_runner.extensions as extensions # Bootstrap all extensions early
 
 from ml_runner.core.extensions.extension_manager import ExtensionManager
 
-from ml_runner.core.tasks.classification_task import ClassificationTask
-
-from ml_runner.core.registries import ModelRegistry, DatasetRegistry, OptimizerRegistry, LossRegistry, MetricRegistry, resolve_component
+from ml_runner.core.registries import ModelRegistry, DatasetRegistry, OptimizerRegistry, LossRegistry, MetricRegistry, TaskRegistry, resolve_component
 
 from ml_runner.core.callbacks.time_profiler import TimeProfiler
 # from ml_runner.core.callbacks.checkpoint_callback import CheckpointCallback
@@ -124,16 +122,34 @@ def build_runtime(run_cfg: RunConfig):
     train_ds = dataset_cls(**run_cfg.dataset.params, train=True)
     val_ds = dataset_cls(**run_cfg.dataset.params, train=False)
 
-    # Build Loaders
-    dl_params = run_cfg.dataloader.copy()
+    # Build Loaders from dataloader config
+    dl_cfg = run_cfg.dataloader
 
-    # Use training.batch_size if present and dataloader batch_size is not
-    if "batch_size" not in dl_params and run_cfg.training.batch_size:
-        dl_params["batch_size"] = run_cfg.training.batch_size
+    # Allow training.batch_size fallback if dataloader doesn't specify
+    batch_size = dl_cfg.batch_size or run_cfg.training.batch_size
 
-    shuffle = dl_params.pop("shuffle", run_cfg.training.shuffle)
-    train_loader = DataLoader(train_ds, **dl_params, shuffle=shuffle)
-    val_loader = DataLoader(val_ds, batch_size=dl_params.get("batch_size", 64))
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=batch_size,
+        shuffle=dl_cfg.shuffle,
+        num_workers=dl_cfg.num_workers,
+        pin_memory=dl_cfg.pin_memory,
+        drop_last=dl_cfg.drop_last,
+        **(dl_cfg.params or {}),
+    )
+
+    # Allow separate evaluation batch size
+    eval_batch_size = getattr(run_cfg.evaluation, "batch_size", None)
+    if eval_batch_size is None:
+        eval_batch_size = batch_size
+
+    val_loader = DataLoader(
+        val_ds,
+        batch_size=eval_batch_size,
+        num_workers=dl_cfg.num_workers,
+        pin_memory=dl_cfg.pin_memory,
+        **(dl_cfg.params or {}),
+    )
 
     # Build Model
     model_cls = ModelRegistry.get(run_cfg.model.name)
@@ -148,10 +164,16 @@ def build_runtime(run_cfg: RunConfig):
     optimizer = optimizer_cls(model.parameters(), lr=run_cfg.optimizer.lr, **run_cfg.optimizer.params)
 
     # Build Metrics
-    metrics = [MetricRegistry.get(m) for m in run_cfg.metrics]
+    metrics = [MetricRegistry.get(m) for m in run_cfg.evaluation.metrics]
 
-    # Build Task
-    task = ClassificationTask(
+    # Build Task (resolve via registry; default to 'classification')
+    task_type = "classification"
+    if hasattr(run_cfg, "task") and run_cfg.task and getattr(run_cfg.task, "name", None):
+        task_type = run_cfg.task.name
+
+    TaskClass = TaskRegistry.get(task_type)
+
+    task = TaskClass(
         model=model,
         loss_fn=loss_fn,
         optimizer=optimizer,
@@ -204,7 +226,7 @@ def run_job(run_config: RunConfig, args, ext_manager: ExtensionManager):
 
     from ml_runner.core.registries import ExtensionRegistry
 
-    callbacks.extend(ext_manager.create_callbacks(config=run_config))
+    callbacks.extend(ext_manager.before_job(config=run_config))
 
     # Create Engine
     engine = Engine(task=task, callbacks=callbacks)

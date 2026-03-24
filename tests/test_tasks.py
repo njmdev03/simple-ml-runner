@@ -1,5 +1,6 @@
 import torch
-from ml_runner.core.tasks.classification_task import ClassificationTask
+import ml_runner.extensions  # ensure basic extensions (and tasks) are registered
+from ml_runner.core.registries import TaskRegistry
 
 def test_classification_task_compute_metrics():
     model = torch.nn.Linear(10, 2)
@@ -8,7 +9,9 @@ def test_classification_task_compute_metrics():
     def mock_metric(outputs, targets):
         return 1.0
 
-    task = ClassificationTask(
+    TaskClass = TaskRegistry.get("classification")
+
+    task = TaskClass(
         model=model,
         loss_fn=torch.nn.CrossEntropyLoss(),
         optimizer=optimizer,
@@ -26,7 +29,8 @@ def test_classification_task_compute_metrics():
 def test_classification_task_steps():
     model = torch.nn.Linear(10, 2)
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
-    task = ClassificationTask(
+    TaskClass = TaskRegistry.get("classification")
+    task = TaskClass(
         model=model,
         loss_fn=torch.nn.CrossEntropyLoss(),
         optimizer=optimizer,

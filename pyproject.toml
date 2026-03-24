@@ -22,4 +22,4 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [project.scripts]
-ml-runner = "ml_runner.main:main"
+ml-runner = "ml_runner.cli:main"

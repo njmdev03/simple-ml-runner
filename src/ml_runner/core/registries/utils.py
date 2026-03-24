@@ -1,7 +1,6 @@
-# core/registries/utils.py
-
 from typing import Type
-from .base import BaseRegistry
+
+from ml_runner.core.registries.base import BaseRegistry
 
 
 def resolve_component(cfg: dict, registry: Type[BaseRegistry]):

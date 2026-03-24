@@ -82,7 +82,7 @@ def test_run_config_with_overrides():
     run_cfg = RunConfig.from_dict(cfg_dict, extension_config_classes=ext_cfg_classes)
 
     assert run_cfg.optimizer.lr == 0.01
-    assert run_cfg.dataloader["batch_size"] == 128
+    assert run_cfg.dataloader.batch_size == 128
     assert run_cfg.training.epochs == 10
     assert run_cfg.training.enabled is False
     assert run_cfg.evaluation.enabled is True

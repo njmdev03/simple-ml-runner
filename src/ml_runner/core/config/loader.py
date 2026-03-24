@@ -1,5 +1,7 @@
 from pathlib import Path
+
 from ml_runner.core.registries import ConfigParserRegistry
+from ml_runner.core.config.utils import merge_dicts
 
 
 def load_file(path):
@@ -8,22 +10,6 @@ def load_file(path):
     parser = ConfigParserRegistry.get(path.suffix)
 
     return parser(path)
-
-
-def merge_dicts(base, override):
-    result = base.copy()
-
-    for k, v in override.items():
-        if (
-            k in result
-            and isinstance(result[k], dict)
-            and isinstance(v, dict)
-        ):
-            result[k] = merge_dicts(result[k], v)
-        else:
-            result[k] = v
-
-    return result
 
 
 def load_config(cfg, seen=None):

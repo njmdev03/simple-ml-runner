@@ -1,7 +1,9 @@
 import torch
-from .base_task import BaseTask
+from ml_runner.core.tasks.base_task import BaseTask
+from ml_runner.core.registries import Task
 
 
+@Task("classification")
 class ClassificationTask(BaseTask):
 
     def training_step(self, batch):

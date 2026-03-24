@@ -1,4 +1,4 @@
-from typing import Callable, Dict
+from typing import Any, Callable, Dict
 
 
 class BaseRegistry:
@@ -34,6 +34,10 @@ class BaseRegistry:
             )
 
         return cls._registry[key]
+
+    @classmethod
+    def contains(cls, obj: Any) -> bool:
+        return any(v == obj for v in cls._registry.values())
 
     @classmethod
     def all(cls):
