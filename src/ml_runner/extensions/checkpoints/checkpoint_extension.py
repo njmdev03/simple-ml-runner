@@ -6,7 +6,7 @@ from ml_runner.core.extensions.base_extension import BaseExtension
 from ml_runner.core.registries import Extension
 from ml_runner.core.config.schema import RunConfig
 from ml_runner.core.engine.event_manager import EventManager
-from ml_runner.core.registries.callbacks import Callback#, attach
+from ml_runner.core.registries.callbacks import Callback
 from ml_runner.core.engine.engine import EngineEvent
 from ml_runner.core.utils.path_utils import resolve_path_template, ensure_dir
 from ml_runner.core.log_utils import logger

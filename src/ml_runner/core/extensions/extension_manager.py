@@ -48,52 +48,52 @@ class ExtensionManager:
         # Add built-in extensions
         import ml_runner.extensions
 
-        # Scan extension folders for ml-extension.toml files
-        # Project-local ./extensions/ then user-local ~/.config/ml_runner/extensions/
-        candidate_dirs = []
-        try:
-            cwd = Path.cwd()
-            candidate_dirs.append(cwd / "extensions")
-        except Exception:
-            pass
+        # # Scan extension folders for ml-extension.toml files
+        # # Project-local ./extensions/ then user-local ~/.config/ml_runner/extensions/
+        # candidate_dirs = []
+        # try:
+        #     cwd = Path.cwd()
+        #     candidate_dirs.append(cwd / "extensions")
+        # except Exception:
+        #     pass
 
-        try:
-            home = Path.home()
-            candidate_dirs.append(home / ".config" / "ml_runner" / "extensions")
-        except Exception:
-            pass
+        # try:
+        #     home = Path.home()
+        #     candidate_dirs.append(home / ".config" / "ml_runner" / "extensions")
+        # except Exception:
+        #     pass
 
-        logger = logging.getLogger(__name__)
+        # logger = logging.getLogger(__name__)
 
-        for d in candidate_dirs:
-            if not d.exists() or not d.is_dir():
-                continue
+        # for d in candidate_dirs:
+        #     if not d.exists() or not d.is_dir():
+        #         continue
 
-            # # Only import top-level .py files found directly under the
-            # # candidate directory. Package-based imports (dirs with
-            # # __init__.py) are intentionally NOT supported to keep discovery
-            # # simple and predictable.
-            # for child in sorted(d.iterdir()):
-            #     try:
-            #         if child.is_file() and child.suffix == ".py":
-            #             mod_name = f"ml_runner_extension_{child.stem}"
-            #             spec = importlib.util.spec_from_file_location(mod_name, str(child))
-            #             if spec and spec.loader:
-            #                 mod = importlib.util.module_from_spec(spec)
-            #                 try:
-            #                     spec.loader.exec_module(mod)
-            #                     logger.info("Imported extension module from file: %s", str(child))
-            #                 except Exception as ie:
-            #                     logger.warning("Failed to import extension file '%s': %s", child, ie)
-            #     except Exception as e:
-            #         logger.warning("Error while discovering extensions in '%s': %s", str(d), e)
+        #     # # Only import top-level .py files found directly under the
+        #     # # candidate directory. Package-based imports (dirs with
+        #     # # __init__.py) are intentionally NOT supported to keep discovery
+        #     # # simple and predictable.
+        #     # for child in sorted(d.iterdir()):
+        #     #     try:
+        #     #         if child.is_file() and child.suffix == ".py":
+        #     #             mod_name = f"ml_runner_extension_{child.stem}"
+        #     #             spec = importlib.util.spec_from_file_location(mod_name, str(child))
+        #     #             if spec and spec.loader:
+        #     #                 mod = importlib.util.module_from_spec(spec)
+        #     #                 try:
+        #     #                     spec.loader.exec_module(mod)
+        #     #                     logger.info("Imported extension module from file: %s", str(child))
+        #     #                 except Exception as ie:
+        #     #                     logger.warning("Failed to import extension file '%s': %s", child, ie)
+        #     #     except Exception as e:
+        #     #         logger.warning("Error while discovering extensions in '%s': %s", str(d), e)
 
-            # Also allow one-deep subfolders that include a standard TOML
-            # entrypoint file which points to a python file or module to import.
-            try:
-                load_toml_plugins(d, filename="ml_runner.toml")
-            except Exception:
-                logger.debug("No TOML plugins loaded from %s", d)
+        #     # Also allow one-deep subfolders that include a standard TOML
+        #     # entrypoint file which points to a python file or module to import.
+        #     try:
+        #         load_toml_plugins(d, filename="ml_runner.toml")
+        #     except Exception:
+        #         logger.debug("No TOML plugins loaded from %s", d)
 
     # -------------------------
     # Construct instances from discovered classes

@@ -176,7 +176,7 @@ class RunConfig:
             elif isinstance(raw, dict):
                 core_kwargs['exports'][exp_name] = cls._build_dataclass(exp_cfg_cls, raw)
             elif isinstance(raw, bool):
-                core_kwargs['exports'][exp_name] = exp_cfg_cls(enabled=raw) if hasattr(exp_cfg_cls, 'enabled') else exp_cfg_cls()
+                core_kwargs['exports'][exp_name] = exp_cfg_cls(enabled=raw) # if hasattr(exp_cfg_cls, 'enabled') else exp_cfg_cls()
             else:
                 core_kwargs['exports'][exp_name] = raw
 

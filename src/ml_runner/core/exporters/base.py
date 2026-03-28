@@ -11,10 +11,10 @@ class BaseExporter:
     to add CLI flags, and `run(exporter_config, global_config)` to execute the export.
     """
     def init(self):
-        return None
+        pass
 
     def register_cli_arguments(self, cli_registry: CLIRegistry):
-        return None
+        pass
 
     def run(self, exporter_config: Any, global_config: RunConfig):
         raise NotImplementedError()
