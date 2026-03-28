@@ -14,12 +14,24 @@ class EvalState(State):
         a = dict_a.get(key)
         b = dict_b.get(key)
 
-        if a and b:
+        if a is not None and b is not None:
             return a + b
-        elif (not a) and (not b):
-            return None
+        elif a is None:
+            return b
         else:
-            return a if not b else b
+            return a
+
+    def get_averaged_metrics(self) -> dict:
+        """
+        Returns a dictionary of averaged metrics.
+        """
+        if self.batch == 0:
+            return {}
+
+        results = {}
+        for k, v in self.total_metrics.items():
+            results[k] = v / self.batch
+        return results
 
     def sum_metrics(self, metrics: dict):
         for key in metrics.keys():

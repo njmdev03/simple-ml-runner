@@ -5,5 +5,8 @@ class MetricRegistry(BaseRegistry):
     _registry = {}
 
 
-def Metric(*names: str):
-    return MetricRegistry.register(*names)
+def Metric(name: str):
+    """
+    Decorator to register a metric with a specific name.
+    """
+    return MetricRegistry.register(name)

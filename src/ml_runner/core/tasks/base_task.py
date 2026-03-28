@@ -1,5 +1,7 @@
+from ml_runner.core.registries.metric import MetricRegistry
+
 class BaseTask:
-    def __init__(self, model, loss_fn, optimizer, train_loader, val_loader, device="cpu", metrics=None):
+    def __init__(self, model, loss_fn, optimizer, train_loader, val_loader, device="cpu", metrics=None, **kwargs):
         self.model = model
         self.loss_fn = loss_fn
         self.optimizer = optimizer
@@ -21,7 +23,8 @@ class BaseTask:
         results = {}
 
         for metric in self.metrics:
-            results[metric.__name__] = metric(outputs, targets)
+            name = MetricRegistry.get_name(metric)
+            results[name] = metric(outputs, targets)
 
         return results
 

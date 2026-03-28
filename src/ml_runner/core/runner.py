@@ -96,7 +96,15 @@ def build_runtime(run_cfg):
     # -------------------------
     # Metrics
     # -------------------------
-    metrics = [MetricRegistry.get(m) for m in run_cfg.evaluation.metrics]
+    metrics = []
+    for m in run_cfg.evaluation.metrics:
+        component = MetricRegistry.get(m)
+        if isinstance(component, type):
+            # It's a class, instantiate it once for the job
+            metrics.append(component())
+        else:
+            # It's already a callable function or object
+            metrics.append(component)
 
     # -------------------------
     # Task

@@ -31,8 +31,12 @@ class EvalLogger:
     def on_eval_end(self, engine, **kwargs):
         self.eval_pbar.close()
 
+        if engine.eval_state.batch == 0:
+            logger.info("Evaluation finished with 0 batches.")
+            return
+
         avg_loss = engine.eval_state.total_loss / engine.eval_state.batch
-        metrics = engine.eval_state.metrics
+        metrics = engine.eval_state.get_averaged_metrics()
 
         msg = f"val_loss={avg_loss:.4f}"
 
