@@ -75,6 +75,9 @@ class MetadataExtension(BaseExtension):
         self.flush()
 
     def flush(self):
+        if (not self.data) or self.data == {}:
+            return
+
         path = Path(self.output_dir) / self.output_file
         ensure_dir(str(path))
         ext = path.suffix.lower()[1:]

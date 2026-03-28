@@ -6,7 +6,6 @@ from ml_runner.core.extensions.base_extension import BaseExtension
 from ml_runner.core.registries import Extension
 from ml_runner.core.config.schema import RunConfig
 from ml_runner.core.engine.event_manager import EventManager
-from ml_runner.core.registries.callbacks import Callback
 from ml_runner.core.engine.engine import EngineEvent
 from ml_runner.core.utils.path_utils import resolve_path_template, ensure_dir
 from ml_runner.core.log_utils import logger
@@ -16,7 +15,7 @@ from ml_runner.core.cli_interface.cli_argument import CLIArgument
 
 @dataclass
 class Config:
-    enabled: bool = True
+    enabled: bool = False
     directory: str = "checkpoints/{experiment_name}"
     name_template: str = "ckpt_epoch_{epoch}.pt"
     metadata_format: str = "json"
@@ -40,19 +39,19 @@ class CheckpointExtension(BaseExtension):
         self.metadata_format = config.metadata_format
         self.every_n_epochs = config.frequency
         ensure_dir(self.path)
-        # attach(self, event_manager)
+
+        event_manager.subscribe(self.on_epoch_end, EngineEvent.EPOCH_END)
+        event_manager.subscribe(self.on_eval_end, EngineEvent.EVAL_END)
 
         CLIRegistry.register(CLIArgument("--checkpoint-dir", help="Directory for saving checkpoints",
                              config_path="extensions.checkpoint.directory"))
         CLIRegistry.register(CLIArgument("--checkpoint-frequency", type=int, help="How often to save checkpoints",
                              config_path="extensions.checkpoint.frequency"))
 
-    @Callback(EngineEvent.EPOCH_END)
     def on_epoch_end(self, engine, **kwargs):
         if engine.train_state.epoch % self.every_n_epochs == 0:
             self._handle_checkpoint(engine)
 
-    @Callback(EngineEvent.EVAL_END)
     def on_eval_end(self, engine, **kwargs):
         self._handle_checkpoint(engine, save_weights=False)
 

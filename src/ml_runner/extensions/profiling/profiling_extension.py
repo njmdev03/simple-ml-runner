@@ -5,14 +5,13 @@ from ml_runner.core.extensions.base_extension import BaseExtension
 from ml_runner.core.registries import Extension
 from ml_runner.core.config.schema import RunConfig
 from ml_runner.core.engine.event_manager import EventManager
-from ml_runner.core.registries.callbacks import Callback
 from ml_runner.core.engine.engine import EngineEvent
 from ml_runner.extensions.profiling.timer import Timer
 
 
 @dataclass
 class ProfilingConfig:
-    enabled: bool = True
+    enabled: bool = False
 
 
 @Extension("profiling", config_class=ProfilingConfig)
@@ -22,34 +21,40 @@ class ProfilingExtension(BaseExtension):
     Measures: whole job time, training time, evaluation time, and per-epoch timings.
     """
     def setup(self, event_manager: EventManager, global_config: RunConfig, config: Optional[ProfilingConfig] = None):
-        if config and config.enabled:
-            self.timers: Dict[str, Timer] = {
-                "job": Timer(),
-                "train_total": Timer(),
-                "eval_total": Timer(),
-                "epoch_total": Timer(),
-                "epoch_train": Timer(),
-                "epoch_eval": Timer()
-            }
+        if not config or not config.enabled:
+            return
 
-    @Callback(EngineEvent.JOB_START)
+        self.timers: Dict[str, Timer] = {
+            "job": Timer(),
+            "train_total": Timer(),
+            "eval_total": Timer(),
+            "epoch_total": Timer(),
+            "epoch_train": Timer(),
+            "epoch_eval": Timer()
+        }
+
+        event_manager.subscribe(self.on_job_start, EngineEvent.JOB_START)
+        event_manager.subscribe(self.on_job_end, EngineEvent.JOB_END)
+        event_manager.subscribe(self.on_train_start, EngineEvent.TRAIN_START)
+        event_manager.subscribe(self.on_train_end, EngineEvent.TRAIN_END)
+        event_manager.subscribe(self.on_epoch_start, EngineEvent.EPOCH_START)
+        event_manager.subscribe(self.on_epoch_end, EngineEvent.EPOCH_END)
+        event_manager.subscribe(self.on_eval_start, EngineEvent.EVAL_START)
+        event_manager.subscribe(self.on_eval_end, EngineEvent.EVAL_END)
+
     def on_job_start(self, engine, **kwargs):
         self.timers["job"].start()
 
-    @Callback(EngineEvent.JOB_END)
     def on_job_end(self, engine, **kwargs):
         self.timers["job"].pause()
         self._record_final_times(engine)
 
-    @Callback(EngineEvent.TRAIN_START)
     def on_train_start(self, engine, **kwargs):
         self.timers["train_total"].start()
 
-    @Callback(EngineEvent.TRAIN_END)
     def on_train_end(self, engine, **kwargs):
         self.timers["train_total"].pause()
 
-    @Callback(EngineEvent.EPOCH_START)
     def on_epoch_start(self, engine, **kwargs):
         self.timers["epoch_total"].reset()
         self.timers["epoch_train"].reset()
@@ -57,13 +62,11 @@ class ProfilingExtension(BaseExtension):
         self.timers["epoch_total"].start()
         self.timers["epoch_train"].start()
 
-    @Callback(EngineEvent.EPOCH_END)
     def on_epoch_end(self, engine, **kwargs):
         self.timers["epoch_train"].pause()
         self.timers["epoch_total"].pause()
         self._record_epoch_times(engine)
 
-    @Callback(EngineEvent.EVAL_START)
     def on_eval_start(self, engine, **kwargs):
         self.timers["epoch_train"].pause()
         self.timers["train_total"].pause()
@@ -72,7 +75,6 @@ class ProfilingExtension(BaseExtension):
         self.timers["job"].start()
         self.timers["epoch_total"].start()
 
-    @Callback(EngineEvent.EVAL_END)
     def on_eval_end(self, engine, **kwargs):
         self.timers["epoch_eval"].pause()
         self.timers["eval_total"].pause()
