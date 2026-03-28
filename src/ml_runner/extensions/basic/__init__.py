@@ -12,6 +12,7 @@ import ml_runner.extensions.basic.datasets.uci_adult_income
 
 # Metrics
 import ml_runner.extensions.basic.metrics.accuracy
+import ml_runner.extensions.basic.metrics.precision
 
 # Losses
 import ml_runner.extensions.basic.loss.torch
