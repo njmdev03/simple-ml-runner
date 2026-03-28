@@ -88,13 +88,10 @@ def build_runtime(run_cfg):
     # Model, Loss, Optimizer
     # -------------------------
     model_cls = ModelRegistry.get(run_cfg.model.name)
-    model = model_cls(**run_cfg.model.params).to(device)
+    model = model_cls(**run_cfg.model.params)
 
     loss_cls = LossRegistry.get(run_cfg.loss.name)
     loss_fn = loss_cls(**run_cfg.loss.params)
-
-    optimizer_cls = OptimizerRegistry.get(run_cfg.optimizer.name)
-    optimizer = optimizer_cls(model.parameters(), lr=run_cfg.optimizer.lr, **run_cfg.optimizer.params)
 
     # -------------------------
     # Metrics
@@ -104,19 +101,29 @@ def build_runtime(run_cfg):
     # -------------------------
     # Task
     # -------------------------
-    task_type = run_cfg.task
-
+    task_type = run_cfg.task.name
     TaskClass = TaskRegistry.get(task_type)
 
     task = TaskClass(
         model=model,
         loss_fn=loss_fn,
-        optimizer=optimizer,
+        optimizer=None,
         train_loader=train_loader,
         val_loader=val_loader,
         device=device,
-        metrics=metrics
+        metrics=metrics,
+        **(run_cfg.task.params or {})
     )
+
+    # Move model to device (Task should have ensured it is on the correct device)
+    task.model.to(device)
+
+    # -------------------------
+    # Optimizer
+    # -------------------------
+    optimizer_cls = OptimizerRegistry.get(run_cfg.optimizer.name)
+    optimizer = optimizer_cls(task.model.parameters(), lr=run_cfg.optimizer.lr, **run_cfg.optimizer.params)
+    task.optimizer = optimizer
 
     return task, device
 

@@ -65,9 +65,8 @@ class Engine:
 
         self._trigger(EngineEvent.TRAIN_START)
 
-        self.model.train()
-
         for epoch in range(1, epochs + 1):
+            self.model.train()
             self.train_state.epoch = epoch
             self.train_state.batches = len(self.task.train_loader)
 

@@ -1,12 +1,15 @@
 class BaseTask:
     def __init__(self, model, loss_fn, optimizer, train_loader, val_loader, device="cpu", metrics=None):
-        self.model = model.to(device)
+        self.model = model
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.device = device
         self.metrics = metrics or []
+
+        if device:
+            self.model.to(device)
 
     def training_step(self, batch):
         raise NotImplementedError

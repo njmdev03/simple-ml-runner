@@ -1,7 +1,6 @@
 # Models
 import ml_runner.extensions.basic.models.mlp
 import ml_runner.extensions.basic.models.cnn
-import ml_runner.extensions.basic.models.rnn
 import ml_runner.extensions.basic.models.python_file
 
 # Datasets

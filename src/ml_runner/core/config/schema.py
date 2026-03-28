@@ -13,6 +13,7 @@ class ExperimentConfig:
 
 
 @NamedConfig("task")
+@dataclass
 class TaskConfig:
     name: str = None
     params: Dict[str, Any] = field(default_factory=dict)
@@ -138,6 +139,8 @@ class RunConfig:
             if is_dataclass(subcls):
                 if isinstance(data, dict):
                     core_kwargs[name] = cls._build_dataclass(subcls, data)
+                elif isinstance(data, str) and NamedConfigRegistry.contains(subcls):
+                    core_kwargs[name] = subcls(name=data)
                 else:
                     core_kwargs[name] = subcls()
             else:
