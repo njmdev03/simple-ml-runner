@@ -11,7 +11,7 @@ class Vocab:
         counter = Counter()
         for tokens in data:
             counter.update(tokens)
-        
+
         for token, freq in counter.most_common():
             if freq >= self.min_freq:
                 if token not in self.stoi:

@@ -1,3 +1,5 @@
+import ml_runner.extensions.nlp.registries
+import ml_runner.extensions.nlp.utils.tokenizers
 import ml_runner.extensions.nlp.models.sequence_models
 import ml_runner.extensions.nlp.tasks.nlp_tasks
 import ml_runner.extensions.nlp.metrics.nlp_metrics

@@ -3,27 +3,26 @@ from torch.utils.data import Dataset
 from ml_runner.core.registries import Dataset as RegistryDataset
 from datasets import load_dataset
 from ml_runner.extensions.nlp.utils.vocab import Vocab
-import re
 
-def basic_tokenizer(text):
-    return re.findall(r"\w+|[^\w\s]", text, re.UNICODE)
-
+from ml_runner.extensions.nlp.registries import TokenizerRegistry
 _global_vocabs = {}
 
 @RegistryDataset("WikiText2")
 class WikiText2Dataset(Dataset):
-    def __init__(self, train: bool = True, seq_len: int = 35):
+    def __init__(self, train: bool = True, seq_len: int = 35, tokenizer_name: str = "basic"):
         self.seq_len = seq_len
         split = "train" if train else "validation"
-        cache_key = "WikiText2_vocab"
+        cache_key = f"WikiText2_{tokenizer_name}_vocab"
 
         ds = load_dataset("wikitext", "wikitext-2-v1", split=split)
+
+        tokenizer = TokenizerRegistry.get(tokenizer_name)
 
         tokens = []
         for line in ds:
             text = line['text'].strip()
             if text:
-                tokens.extend(text.split())
+                tokens.extend(tokenizer(text))
 
         if cache_key not in _global_vocabs:
             v = Vocab(specials=['<UNK>', '<PAD>', '<SOS>', '<EOS>'])
@@ -52,16 +51,18 @@ class WikiText2Dataset(Dataset):
 
 @RegistryDataset("Multi30k")
 class Multi30kDataset(Dataset):
-    def __init__(self, train: bool = True, max_len: int = 50):
+    def __init__(self, train: bool = True, max_len: int = 50, tokenizer_name: str = "basic"):
         self.max_len = max_len
         split = "train" if train else "validation"
         ds = load_dataset("bentrevett/multi30k", split=split)
 
-        src_data_list = [basic_tokenizer(item['en'].lower()) for item in ds]
-        trg_data_list = [basic_tokenizer(item['de'].lower()) for item in ds]
+        tokenizer = TokenizerRegistry.get(tokenizer_name)
 
-        cache_key_src = "Multi30k_vocab_src"
-        cache_key_trg = "Multi30k_vocab_trg"
+        src_data_list = [tokenizer(item['en'].lower()) for item in ds]
+        trg_data_list = [tokenizer(item['de'].lower()) for item in ds]
+
+        cache_key_src = f"Multi30k_{tokenizer_name}_vocab_src"
+        cache_key_trg = f"Multi30k_{tokenizer_name}_vocab_trg"
 
         if cache_key_src not in _global_vocabs:
             v = Vocab(specials=['<UNK>', '<PAD>', '<SOS>', '<EOS>'])
