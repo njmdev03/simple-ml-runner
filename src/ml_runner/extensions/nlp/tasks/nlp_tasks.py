@@ -3,14 +3,15 @@ from ml_runner.core.tasks.base_task import BaseTask
 from ml_runner.core.registries import Task
 
 from ml_runner.extensions.nlp.registries import EmbeddingRegistry
+from ml_runner.core.registries.metric import MetricRegistry
 
 @Task("text_generation")
 class TextGenerationTask(BaseTask):
-    def __init__(self, model, loss_fn, optimizer, train_loader, val_loader, device="cpu", metrics=None):
+    def __init__(self, model, loss_fn, optimizer, train_loader, val_loader, device="cpu", metrics=None, **kwargs):
         vocab = getattr(train_loader.dataset, 'vocab', None)
         if vocab and hasattr(model, 'reconfigure_for_vocab'):
             embedding_type = getattr(model, 'embedding_type', "GensimLoader")
-            embedding_name = getattr(model, 'embedding_name', None)
+            embedding_name = kwargs.get('embedding_name') or getattr(model, 'embedding_name', None)
 
             if embedding_name:
                 # Use registry to get the loader
@@ -23,7 +24,7 @@ class TextGenerationTask(BaseTask):
                 emb_dim = getattr(model.embedding, 'embedding_dim', 0) if hasattr(model, 'embedding') and model.embedding else 0
                 model.reconfigure_for_vocab(len(vocab), emb_dim)
 
-        super().__init__(model, loss_fn, optimizer, train_loader, val_loader, device, metrics)
+        super().__init__(model, loss_fn, optimizer, train_loader, val_loader, device, metrics, **kwargs)
 
     def training_step(self, batch):
         x, y = batch
@@ -42,35 +43,34 @@ class TextGenerationTask(BaseTask):
 
     def compute_metrics(self, outputs, targets):
         results = {}
-        # Get vocab from dataset
-        vocab = getattr(self.val_loader.dataset, 'vocab', None)
+        # Prepare context for metrics that might need it (like BLEU needing vocab)
+        context = {
+            "vocab": getattr(self.val_loader.dataset, 'vocab', None),
+            "loss_fn": self.loss_fn
+        }
 
         for metric in self.metrics:
-            if metric.__name__ == 'perplexity':
-                results['perplexity'] = metric(outputs, targets, self.loss_fn)
-            elif metric.__name__ == 'bleu' and vocab:
-                # Decode indices to strings
-                preds = torch.argmax(outputs, dim=-1)
-                decoded_preds = [" ".join(vocab.decode(p.tolist())) for p in preds]
-                decoded_targets = [" ".join(vocab.decode(t.tolist())) for t in targets]
-                results['bleu'] = metric(decoded_preds, decoded_targets)
-            else:
-                # Try generic call
+            name = MetricRegistry.get_name(metric)
+            try:
+                # Standardize metric calls to pass context
+                results[name] = metric(outputs, targets, **context)
+            except Exception:
+                # Fallback to no context if the metric doesn't support it
                 try:
-                    results[metric.__name__] = metric(outputs, targets)
+                    results[name] = metric(outputs, targets)
                 except Exception:
                     pass
         return results
 
 @Task("machine_translation")
 class MachineTranslationTask(BaseTask):
-    def __init__(self, model, loss_fn, optimizer, train_loader, val_loader, device="cpu", metrics=None):
+    def __init__(self, model, loss_fn, optimizer, train_loader, val_loader, device="cpu", metrics=None, **kwargs):
         src_vocab = getattr(train_loader.dataset, 'src_vocab', None)
         trg_vocab = getattr(train_loader.dataset, 'trg_vocab', None)
 
         if src_vocab and trg_vocab:
             embedding_type = getattr(model, 'embedding_type', "GensimLoader")
-            embedding_name = getattr(model, 'embedding_name', None)
+            embedding_name = kwargs.get('embedding_name') or getattr(model, 'embedding_name', None)
 
             if embedding_name:
                 LoaderClass = EmbeddingRegistry.get(embedding_type)
@@ -88,7 +88,7 @@ class MachineTranslationTask(BaseTask):
                     emb_dim = getattr(model.encoder.embedding, 'embedding_dim', 0) if hasattr(model.encoder, 'embedding') and model.encoder.embedding else 0
                     model.reconfigure_for_vocabs(len(src_vocab), len(trg_vocab), emb_dim)
 
-        super().__init__(model, loss_fn, optimizer, train_loader, val_loader, device, metrics)
+        super().__init__(model, loss_fn, optimizer, train_loader, val_loader, device, metrics, **kwargs)
 
     def training_step(self, batch):
         src, trg = batch
@@ -106,23 +106,22 @@ class MachineTranslationTask(BaseTask):
         return loss, outputs, trg
 
     def compute_metrics(self, outputs, targets):
+        from ml_runner.core.registries.metric import MetricRegistry
         results = {}
-        # Get target vocab from dataset
-        trg_vocab = getattr(self.val_loader.dataset, 'trg_vocab', None)
+        # Prepare context
+        context = {
+            "src_vocab": getattr(self.val_loader.dataset, 'src_vocab', None),
+            "trg_vocab": getattr(self.val_loader.dataset, 'trg_vocab', None),
+            "loss_fn": self.loss_fn
+        }
 
         for metric in self.metrics:
-            if metric.__name__ == 'perplexity':
-                results['perplexity'] = metric(outputs, targets, self.loss_fn)
-            elif metric.__name__ == 'bleu' and trg_vocab:
-                preds = torch.argmax(outputs, dim=-1)
-                # Filter out special tokens like <PAD>, <SOS>, <EOS> for BLEU calculation if desired
-                # But for now, just decode
-                decoded_preds = [" ".join(trg_vocab.decode(p.tolist())) for p in preds]
-                decoded_targets = [" ".join(trg_vocab.decode(t.tolist())) for t in targets]
-                results['bleu'] = metric(decoded_preds, decoded_targets)
-            else:
+            name = MetricRegistry.get_name(metric)
+            try:
+                results[name] = metric(outputs, targets, **context)
+            except Exception:
                 try:
-                    results[metric.__name__] = metric(outputs, targets)
+                    results[name] = metric(outputs, targets)
                 except Exception:
                     pass
         return results

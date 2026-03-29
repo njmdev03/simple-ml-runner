@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Union
 from pathlib import Path
 
 from ml_runner.core.registries.exporter import Exporter
 from ml_runner.core.cli_interface.cli_argument import CLIArgument
 from ml_runner.core.exporters.base import BaseExporter
 from ml_runner.core.log_utils import logger
+from ml_runner.core.utils.path_utils import resolve_path_template
 
 
 @dataclass
@@ -32,9 +33,20 @@ class PlotExporter(BaseExporter):
             logger.error("Matplotlib not found, skipping plotting")
             return
 
+        context = {}
+        if global_config:
+            context = {
+                "experiment_name": global_config.experiment.name,
+                "device": global_config.device
+            }
+
         # Determine metadata directory and output
         metadata_dir = cfg.metadata_dir if cfg and cfg.metadata_dir else None
-        output_dir = Path(cfg.output) if cfg and cfg.output else Path('.')
+        output_dir_str = cfg.output if cfg and cfg.output else '.'
+
+        if metadata_dir:
+            metadata_dir = resolve_path_template(metadata_dir, context)
+        output_dir = Path(resolve_path_template(output_dir_str, context))
 
         # Parse plot specifications. Support repeated flags and comma-separated lists.
         raw_plots = cfg.plots
@@ -42,15 +54,16 @@ class PlotExporter(BaseExporter):
             raw_plots = [raw_plots]
 
         plot_groups: List[List[str]] = []
-        for item in raw_plots:
-            if isinstance(item, str):
-                parts = [p.strip() for p in item.split(',') if p.strip()]
-                if parts:
-                    plot_groups.append(parts)
-            elif isinstance(item, (list, tuple)):
-                parts = [str(p).strip() for p in item if str(p).strip()]
-                if parts:
-                    plot_groups.append(parts)
+        if raw_plots:
+            for item in raw_plots:
+                if isinstance(item, str):
+                    parts = [p.strip() for p in item.split(',') if p.strip()]
+                    if parts:
+                        plot_groups.append(parts)
+                elif isinstance(item, (list, tuple)):
+                    parts = [str(p).strip() for p in item if str(p).strip()]
+                    if parts:
+                        plot_groups.append(parts)
 
         # Load metadata files using the metadata extension helper if available
         entries = []
@@ -74,12 +87,13 @@ class PlotExporter(BaseExporter):
 
             # include top-level scalar metrics (excluding special keys)
             for k, v in md.items():
-                if k in ('epoch', 'eval_metrics', 'timing', '_source_path'):
+                if k in ('epoch', 'eval_metrics', 'timing', '_source_path', 'eval'):
                     continue
                 row[k] = v
 
             # expand eval_metrics into top-level keys
-            eval_metrics = md.get('eval_metrics') or {}
+            eval_data = md.get('eval') or {}
+            eval_metrics = md.get('eval_metrics') or eval_data.get('eval_metrics') or {}
             if isinstance(eval_metrics, dict):
                 for k, v in eval_metrics.items():
                     row[k] = v

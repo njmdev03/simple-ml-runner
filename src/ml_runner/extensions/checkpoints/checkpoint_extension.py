@@ -82,4 +82,4 @@ class CheckpointExtension(BaseExtension):
             eval_metrics = {"loss": float(engine.eval_state.total_loss / engine.eval_state.batch)}
             for k, v in engine.eval_state.total_metrics.items():
                 eval_metrics[k] = float(v / engine.eval_state.batch)
-            engine.metadata.update("eval_metrics", eval_metrics)
+            engine.metadata.update("eval_metrics", eval_metrics, namespace="eval")

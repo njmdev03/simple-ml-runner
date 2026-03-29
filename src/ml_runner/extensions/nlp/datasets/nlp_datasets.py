@@ -9,8 +9,9 @@ _global_vocabs = {}
 
 @RegistryDataset("WikiText2")
 class WikiText2Dataset(Dataset):
-    def __init__(self, train: bool = True, seq_len: int = 35, tokenizer_name: str = "basic"):
+    def __init__(self, train: bool = True, seq_len: int = 35, stride: int = None, tokenizer_name: str = "basic"):
         self.seq_len = seq_len
+        self.stride = stride or seq_len
         split = "train" if train else "validation"
         cache_key = f"WikiText2_{tokenizer_name}_vocab"
 
@@ -31,13 +32,14 @@ class WikiText2Dataset(Dataset):
         self.vocab = _global_vocabs[cache_key]
 
         self.data = self.vocab.encode(tokens)
-        self.num_batches = (len(self.data) - 1) // seq_len
+        # Calculate total number of samples based on stride
+        self.num_samples = (len(self.data) - seq_len - 1) // self.stride + 1
 
     def __len__(self):
-        return self.num_batches
+        return self.num_samples
 
     def __getitem__(self, idx):
-        start = idx * self.seq_len
+        start = idx * self.stride
         end = start + self.seq_len
         x = self.data[start:end]
         y = self.data[start+1:end+1]

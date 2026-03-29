@@ -16,9 +16,7 @@ from ml_runner.core.utils.path_utils import resolve_path_template, ensure_dir
 
 @dataclass
 class MetadataConfig:
-    enabled: bool = True
-    output_file: str = "metadata.json"
-    output_dir: str = "results/{experiment_name}"
+    enabled: bool = False
 
 
 @Extension("metadata", config_class=MetadataConfig)
@@ -33,15 +31,19 @@ class MetadataExtension(BaseExtension):
                 "experiment_name": global_config.experiment.name,
                 "device": global_config.device
             }
-            self.output_dir = resolve_path_template(config.output_dir, context)
-            self.output_file = resolve_path_template(config.output_file, context)
+            self.output_dir = None #resolve_path_template(config.output_dir, context)
+            self.output_file = None #resolve_path_template(config.output_file, context)
             self.data: Dict[str, Any] = {}
+
+            self._config = config
+            self._global_config = global_config
             # attach(self, event_manager)
 
     @Callback(EngineEvent.JOB_START)
     def on_job_start(self, engine, **kwargs):
         # Inject this extension instance into engine so other callbacks can access its methods
         engine.metadata = self
+        self.flush()
 
     @Callback("record_metric")
     def on_record_metric(self, key: str, value: Any, namespace: Optional[str] = None, **kwargs):
@@ -50,6 +52,12 @@ class MetadataExtension(BaseExtension):
     def set_flush_target(self, path: Path, format: str = "json", **kwargs):
         self.output_dir = str(path.parent)
         self.output_file = path.name
+
+    def save_to(self, data: Dict[str, Any], path: Path, format: Optional[str] = None):
+        """Save a specific data dictionary to a specific path."""
+        ensure_dir(str(path.parent))
+        ext = format or path.suffix.lower()[1:] or "json"
+        self._save(path, data, ext)
 
     def update(self, key: str, value: Any, namespace: Optional[str] = None):
         if namespace:
@@ -67,7 +75,12 @@ class MetadataExtension(BaseExtension):
         self.flush()
 
     @Callback(EngineEvent.EVAL_END)
-    def on_eval_end(self, engine, **kwargs):
+    def on_eval_end(self, engine: Engine, **kwargs):
+        if engine.eval_state.batch > 0:
+            eval_metrics = {"loss": float(engine.eval_state.total_loss / engine.eval_state.batch)}
+            for k, v in engine.eval_state.total_metrics.items():
+                eval_metrics[k] = float(v / engine.eval_state.batch)
+            self.update("eval_metrics", eval_metrics, namespace="eval")
         self.flush()
 
     @Callback(EngineEvent.JOB_END)
@@ -75,7 +88,7 @@ class MetadataExtension(BaseExtension):
         self.flush()
 
     def flush(self):
-        if (not self.data) or self.data == {}:
+        if (not self.data) or self.data == {} or (not self.output_dir) or (not self.output_file):
             return
 
         path = Path(self.output_dir) / self.output_file
