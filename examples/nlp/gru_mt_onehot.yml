@@ -1,26 +1,23 @@
 experiment:
-  name: mnist_mlp
+  name: gru_mt_onehot
 
-device: auto
+task: machine_translation
 
-task: classification
+model:
+  name: GRU_Seq2Seq
+  params:
+    emb_dim: 0 # Automatically triggers One-Hot encoding
+    hid_dim: 256
+    n_layers: 2
 
 dataset:
-  name: MNIST
+  name: Multi30k
   params:
-    root: ./data
-    download: true
+    max_len: 50
 
 dataloader:
   batch_size: 64
-  shuffle: true
-
-model:
-  name: MLP
-  params:
-    input_dim: 784
-    layers: [256, 128]
-    output_dim: 10
+  shuffle: false
 
 loss:
   name: cross_entropy
@@ -30,33 +27,27 @@ optimizer:
   lr: 0.001
 
 evaluation:
-  enabled: true
-  eval_checkpoints: true
-  eval_frequency: 1
-  batch_size: 8000
+  batch_size: 128
   metrics:
-    - accuracy
-    - precision
+    - perplexity
+    - bleu
 
 training:
-  enabled: true
-  epochs: 10
+  epochs: 5
 
 logging:
   output_dir: "logs/{experiment_name}"
   log_file: "run_{timestamp}.log"
-  level: INFO
 
 extensions:
   checkpoints:
     enabled: true
     directory: "checkpoints/{experiment_name}"
-    name_template: "model_epoch_{epoch}.pt"
-    frequency: 1
-  metadata:
-    enabled: true
   profiling:
     enabled: true
+  metadata:
+    enabled: true
+    output_dir: "results/{experiment_name}"
   tensorboard:
     enabled: true
     log_dir: "tensorboard/{experiment_name}"
@@ -65,8 +56,8 @@ exports:
   plot:
     plots:
       - loss
-      - accuracy
-      - precision
+      - perplexity
+      - bleu
       - epoch_train_duration,epoch_eval_duration
     output: "plots/{experiment_name}"
     metadata_dir: "checkpoints/{experiment_name}"
