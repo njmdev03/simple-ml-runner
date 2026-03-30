@@ -17,18 +17,18 @@ Simple ML Runner automates the machine learning lifecycle. You define your exper
 
 1. **Create a Virtual Environment**:
 
-    ```bash
-    python -m venv .venv
-    # Windows: .venv\Scripts\activate | Unix: source .venv/bin/activate
-    ```
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate | Unix: source .venv/bin/activate
+```
 
 2. **Install Dependencies**:
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+```bash
+pip install -r requirements.txt
+```
 
-    *Note: For GPU support, follow the [PyTorch installation guide](https://pytorch.org/get-started/locally/).*
+Note: For GPU support, follow the [PyTorch installation guide](https://pytorch.org/get-started/locally/).
 
 ## 🛠️ Basic Usage
 

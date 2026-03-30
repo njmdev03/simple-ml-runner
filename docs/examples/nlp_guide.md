@@ -1,120 +1,67 @@
-# NLP Examples Guide
+# Extended Experiment Analysis
 
-This guide explores Natural Language Processing (NLP) experiments using `ml-runner`. We compare three major Recurrent Neural Network (RNN) architectures across two common tasks: **Machine Translation** and **Text Generation**.
+To better understand model behavior, we compare all experiments across three axes: model architecture (RNN, LSTM, GRU), task (machine translation vs. text generation), and input representation (one-hot vs. pretrained embeddings). All results are taken from the final epoch after 5 training iterations.
+## Machine Translation (Multi30k)
 
----
+| Model | Encoding   | Val Loss | Perplexity |   BLEU    |
+| :---- | :--------- | :------: | :--------: | :-------: |
+| GRU   | One-Hot    | **1.16** |  **3.20**  | **89.81** |
+| GRU   | Pretrained |   1.15   |    3.17    |   89.64   |
+| LSTM  | One-Hot    |   1.27   |    3.56    |   89.17   |
+| LSTM  | Pretrained |   1.28   |    3.61    |   89.08   |
+| RNN   | One-Hot    |   1.31   |    3.72    |   88.95   |
+| RNN   | Pretrained |   1.31   |    3.70    |   88.93   |
 
-## Models & Architectures
+For machine translation, **BLEU score is the primary metric**, as it directly measures how closely generated translations match human references. Loss and perplexity are still useful for optimization insight, but BLEU provides the most interpretable measure of real-world translation quality.
 
-In these experiments, we use three variations of Recurrent Neural Networks to handle sequential data:
+Across all configurations, performance is consistently high, with BLEU scores near 89 for every model. The GRU achieves the strongest results, slightly outperforming both LSTM and the vanilla RNN in loss, perplexity, and BLEU. This suggests that the GRU strikes an effective balance between expressive power and training efficiency.
 
-### 1. RNN (Recurrent Neural Network)
+Interestingly, pretrained embeddings provide almost no improvement in this task. The differences between one-hot and pretrained variants are negligible, indicating that the model is able to learn effective word representations directly from the parallel translation data. This is expected in supervised settings like translation, where strong input-output alignment provides a rich learning signal.
+## Text Generation (WikiText2)
 
-The simplest form of a sequential model. It processes information step-by-step, but often suffers from the **vanishing gradient problem**, making it difficult to remember information from far back in a sentence.
+| Model | Encoding   | Val Loss | Perplexity |
+| :---- | :--------- | :------: | :--------: |
+| GRU   | Pretrained | **4.77** | **120.39** |
+| RNN   | Pretrained |   4.90   |   136.89   |
+| LSTM  | Pretrained |   5.02   |   154.39   |
+| RNN   | One-Hot    |   4.92   |   139.31   |
+| GRU   | One-Hot    |   5.06   |   160.94   |
+| LSTM  | One-Hot    |   5.07   |   162.01   |
 
-### 2. LSTM (Long Short-Term Memory)
+For text generation, perplexity is the most meaningful metric, as it reflects how well the model predicts the next token in a sequence. BLEU is not particularly informative in this setting because there are many valid ways to continue a sentence, making exact n-gram overlap a poor measure of quality.
 
-A more advanced RNN that uses "gates" to control the flow of information. It can learn long-range dependencies by deciding which information to keep and which to forget.
+Unlike machine translation, performance varies more significantly across configurations. The GRU with pretrained embeddings achieves the lowest perplexity, indicating the best predictive performance overall. In general, pretrained embeddings lead to substantial improvements, reducing perplexity by a large margin compared to one-hot representations.
 
-### 3. GRU (Gated Recurrent Unit)
+The vanilla RNN performs surprisingly well, even outperforming the LSTM in this setup. This likely reflects the relatively short training duration (5 epochs) and the nature of the dataset, where shorter-range dependencies dominate. More complex architectures like LSTM often require longer training to fully realize their advantages.
+## Embedding Strategy Comparison
 
-A simplified version of the LSTM that is often faster to train while achieving similar performance. It merges the cell state and hidden state, making it more computationally efficient.
+The effectiveness of the embedding strategy depends strongly on the task.
 
----
+In machine translation, one-hot and pretrained embeddings perform nearly identically. This suggests that when sufficient supervised data is available, models can learn meaningful representations during training without needing external initialization.
 
-## Datasets
+In contrast, text generation benefits significantly from pretrained embeddings. Because the task lacks explicit supervision and must learn language structure from raw sequences, starting from semantically meaningful word vectors provides a major advantage. This results in both better performance and faster convergence.
+## Runtime and Efficiency
 
-We use two primary datasets for our NLP tasks:
+Training time varies considerably across both model architecture and embedding strategy.
 
-- **Multi30k**: A dataset of 30,000 images with captions in multiple languages (we use German to English). Ideal for **Machine Translation**.
-- **WikiText2**: A collection of high-quality Wikipedia articles. Used for **Text Generation** (Language Modeling).
+|Model|Task|One-Hot Train Time (s)|Pretrained Train Time (s)|
+|:--|:--|:-:|:-:|
+|GRU|MT|801.6|524.9|
+|LSTM|MT|917.8|523.8|
+|RNN|MT|609.8|489.8|
+|GRU|Text|251.2|104.8|
+|LSTM|Text|269.4|109.8|
+|RNN|Text|189.0|102.6|
 
----
+Pretrained embeddings consistently reduce training time, in some cases by nearly half. This is primarily due to the reduced dimensionality of the input representation compared to one-hot encoding, which significantly lowers the cost of matrix operations in the model.
 
-## Techniques & Metrics
+Among the architectures, LSTMs are the most computationally expensive due to their more complex gating mechanisms, while RNNs are the fastest but least expressive. GRUs fall in between, offering a strong balance of efficiency and performance.
+## Final Discussion
 
-### Embedding Strategies
+These experiments highlight how model choice, representation, and task interact in practical NLP systems.
 
-- **One-Hot Encoding**: Triggered by setting `emb_dim: 0` in the configuration. The backend uses `torch.nn.functional.one_hot` to convert word indices into binary vectors. This represents words as high-dimensional, sparse vectors where only one element is "1".
-- **Embeddings**: When `emb_dim > 0`, the model uses a `torch.nn.Embedding` layer. This maps each word to a dense, lower-dimensional vector that the model learns during training.
-- **Pretrained (GloVe)**: A type of dense embedding where the vectors are initialized using pre-calculated word weights (e.g., from Global Vectors for Word Representation). This provides the model with semantic knowledge before training even begins.
+For machine translation, all models perform well, and the differences between architectures and embedding strategies are relatively small. The GRU provides the best overall performance, but even the simplest RNN achieves competitive results. This suggests that the task is well-structured and benefits from strong supervision.
 
-### Key Metrics
+For text generation, the situation is more nuanced. Performance varies more widely, and both model architecture and embedding strategy play a larger role. Pretrained embeddings are especially important, and the GRU again emerges as a strong overall choice.
 
-- **Loss (Cross-Entropy)**: Measures the distance between predicted probabilities and actual words. Lower is better.
-- **Perplexity**: A measurement of how "surprised" a model is by new data. It's mathematically defined as $2^{H(p)}$, where $H(p)$ is the entropy. Lower perplexity means better prediction.
-- **BLEU Score**: A metric for evaluating machine translation by comparing the model's output to human-provided reference translations. Scores range from 0 to 100, where higher is better.
-
----
-
-## Performance Comparisons
-
-We compared RNN, LSTM, and GRU architectures across both tasks. Below are the results for one-hot encoded models after 5 epochs of training.
-
-### Machine Translation (Multi30k)
-
-| Model | Val Loss | Perplexity | BLEU |
-| :--- | :---: | :---: | :---: |
-| **RNN** | 1.31 | 3.72 | 88.95 |
-| **LSTM** | 1.27 | 3.56 | 89.17 |
-| **GRU** | 1.16 | 3.20 | 89.81 |
-
-**Analysis**:
-
-- The **GRU** performed the best in terms of BLEU score and loss on this dataset.
-- The **RNN** lagged slightly behind, likely due to the difficulty in maintaining long-term dependencies compared to gated architectures like LSTM and GRU.
-
-![Architecture Loss Comparison](../../images/gru_mt_loss.png)
-*Figure 1: Training and Validation Loss for the GRU model.*
-
-### Text Generation (WikiText2)
-
-| Model | Val Loss | Perplexity | Epoch Duration |
-| :--- | :---: | :---: | :---: |
-| **RNN** | 4.92 | 139.31 | 37.98s |
-| **LSTM** | 5.07 | 162.01 | 53.45s |
-| **GRU** | 5.06 | 160.94 | 49.23s |
-
-**Analysis**:
-
-- Interestingly, the simple **RNN** achieved the lowest perplexity on this specific configuration of the WikiText2 task, though it was slightly less complex than the MT task.
-- Gated models (LSTM/GRU) often require more epochs to fully converge on complex language modeling tasks compared to simpler translation tasks.
-
----
-
-## Runtime Analysis
-
-Understanding the trade-off between model complexity and training speed is crucial for scaling experiments.
-
-### Training Speed (per Epoch)
-
-| Embedding | Model | Task | Duration |
-| :--- | :---: | :---: | :---: |
-| One-Hot | RNN | MT | 122.40s |
-| One-Hot | LSTM | MT | 185.15s |
-| One-Hot | GRU | MT | 162.58s |
-| Pretrained | GRU | MT | 105.00s |
-
-**Key Takeaways**:
-
-1.  **Model Complexity**: LSTMs are the most computationally expensive due to their four-gate architecture, followed by GRUs (three gates) and then simple RNNs.
-2.  **Embedding Impact**: Using **Pretrained Embeddings** is significantly faster (105s vs 162s for GRU). This is because the input dimension is reduced from the vocabulary size (thousands of dimensions in one-hot) to a dense vector (e.g., 50 dimensions), leading to much smaller matrix multiplications in the first layer.
-
-![Duration Plot](../../images/gru_mt_duration.png)
-*Figure 2: Breakdown of training vs. evaluation time for the GRU model.*
-
----
-
-## Try It Yourself
-
-You can reproduce these experiments using the provided configurations:
-
-```bash
-# Run Machine Translation with GRU and One-Hot embeddings
-ml-runner run -c examples/nlp/gru_mt_onehot.yml
-
-# Run Text Generation with LSTM and Pretrained embeddings
-ml-runner run -c examples/nlp/lstm_text_gen_pretrained.yml
-```
-
-Explore the `examples/nlp/` directory to see how these models are configured!
+More broadly, the results reinforce an important idea in NLP: model performance depends not just on architecture, but on how well the approach matches the structure of the task. Choosing appropriate metrics is also critical—BLEU for translation and perplexity for language modeling—since different tasks require different ways of measuring success.
