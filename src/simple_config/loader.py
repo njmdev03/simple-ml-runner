@@ -4,7 +4,11 @@ from simple_config.parser.registry import ParserRegistry
 from simple_config.merger import merge_dicts
 from simple_config.exceptions import SimpleConfigError, ConfigNotFoundError
 
-def load_raw_config(path: Union[str, Path], seen: Optional[Set[Path]] = None) -> dict:
+def load_raw_config(
+    path: Union[str, Path],
+    seen: Optional[Set[Path]] = None,
+    inheritance_key: str = "config",
+) -> dict:
     """Load a configuration file and handle inheritance via the 'config' key.
 
     Detects circular dependencies and merges base configurations recursively.
@@ -12,6 +16,8 @@ def load_raw_config(path: Union[str, Path], seen: Optional[Set[Path]] = None) ->
     Args:
         path: The path to the configuration file.
         seen: A set of paths already seen in the inheritance chain to detect cycles.
+        inheritance_key: The key used in the config file to specify base configs.
+            Defaults to "config".
 
     Returns:
         A dictionary containing the merged configuration data.
@@ -43,19 +49,19 @@ def load_raw_config(path: Union[str, Path], seen: Optional[Set[Path]] = None) ->
     if not isinstance(data, dict):
         raise SimpleConfigError(f"Config from '{path}' must be a dictionary, got {type(data).__name__}")
 
-    # Step 3: Resolve 'config' recursively
-    bases = data.pop("config", [])
+    # Step 3: Resolve inheritance recursively
+    bases = data.pop(inheritance_key, [])
     if isinstance(bases, str):
         bases = [bases]
     elif not isinstance(bases, list):
-        raise SimpleConfigError(f"The 'config' key in '{path}' must be a string or a list of strings, got {type(bases).__name__}")
+        raise SimpleConfigError(f"The '{inheritance_key}' key in '{path}' must be a string or a list of strings, got {type(bases).__name__}")
 
     result = {}
     for base_rel_path in bases:
         if not isinstance(base_rel_path, str):
             raise SimpleConfigError(f"Inheritance paths must be strings, got {type(base_rel_path).__name__} in '{path}'")
         base_path = (path.parent / base_rel_path).resolve()
-        base_config = load_raw_config(base_path, seen=new_seen)
+        base_config = load_raw_config(base_path, seen=new_seen, inheritance_key=inheritance_key)
         result = merge_dicts(result, base_config)
 
     # Finally merge this config over the bases

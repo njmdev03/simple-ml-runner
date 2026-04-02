@@ -6,12 +6,18 @@ from simple_config.loader import load_raw_config
 from simple_config.merger import merge_dicts
 from simple_config.exceptions import SimpleConfigError, ConfigNotFoundError, ConfigValidationError, ConfigTypeError
 
-def build_config(name: str, files: Union[str, List[str]]) -> Any:
+def build_config(
+    name: str,
+    files: Union[str, List[str]],
+    inheritance_key: str = "config",
+) -> Any:
     """Load, merge, and build a typed config dataclass.
 
     Args:
         name: The name of the root config schema to build.
         files: A single path or list of paths to configuration files.
+        inheritance_key: The key used in config files for inheritance.
+            Defaults to "config".
 
     Returns:
         An instance of the registered dataclass.
@@ -36,7 +42,7 @@ def build_config(name: str, files: Union[str, List[str]]) -> Any:
         merged_data: Dict[str, Any] = {}
 
         for f in files:
-            data = load_raw_config(f)
+            data = load_raw_config(f, inheritance_key=inheritance_key)
             merged_data = merge_dicts(merged_data, data)
 
         config = _instantiate_dataclass(cfg_cls, merged_data)
