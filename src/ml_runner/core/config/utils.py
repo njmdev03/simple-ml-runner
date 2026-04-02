@@ -1,14 +1,7 @@
+from simple_config.merger import merge_dicts as _merge_dicts
+
 def merge_dicts(base, override):
-    result = base.copy()
-
-    for k, v in override.items():
-        if (
-            k in result
-            and isinstance(result[k], dict)
-            and isinstance(v, dict)
-        ):
-            result[k] = merge_dicts(result[k], v)
-        else:
-            result[k] = v
-
-    return result
+    """
+    Backward-compatible wrapper for merge_dicts from simple_config.
+    """
+    return _merge_dicts(base, override)

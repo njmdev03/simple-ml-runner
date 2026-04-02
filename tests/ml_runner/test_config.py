@@ -2,6 +2,7 @@ import pytest
 
 from ml_runner.core.config.loader import merge_dicts
 from ml_runner.core.config.loader import load_config
+from simple_config.exceptions import SimpleConfigError
 
 
 def test_dict_merge_basic():
@@ -63,7 +64,7 @@ def test_list_override():
 
 
 def test_config_loading():
-    cfg = load_config("tests/configs/experiment.yaml")
+    cfg = load_config("tests/ml_runner/configs/experiment.yaml")
 
     assert cfg["model"]["hidden_dim"] == 256
     assert cfg["dataset"]["batch_size"] == 64
@@ -73,12 +74,12 @@ def test_config_loading():
 
 
 def test_config_callbacks():
-    cfg = load_config("tests/configs/experiment.yaml")
+    cfg = load_config("tests/ml_runner/configs/experiment.yaml")
 
     assert "console_logger" in cfg["callbacks"]
     assert "checkpoint" in cfg["callbacks"]
 
 
 def test_circular_extends():
-    with pytest.raises(RuntimeError):
-        load_config("tests/configs/bad_config.yaml")
+    with pytest.raises(SimpleConfigError):
+        load_config("tests/ml_runner/configs/bad_config.yaml")

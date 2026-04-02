@@ -97,8 +97,8 @@ Understanding the trade-off between model complexity and training speed is cruci
 
 **Key Takeaways**:
 
-1.  **Model Complexity**: LSTMs are the most computationally expensive due to their four-gate architecture, followed by GRUs (three gates) and then simple RNNs.
-2.  **Embedding Impact**: Using **Pretrained Embeddings** is significantly faster (105s vs 162s for GRU). This is because the input dimension is reduced from the vocabulary size (thousands of dimensions in one-hot) to a dense vector (e.g., 50 dimensions), leading to much smaller matrix multiplications in the first layer.
+1. **Model Complexity**: LSTMs are the most computationally expensive due to their four-gate architecture, followed by GRUs (three gates) and then simple RNNs.
+2. **Embedding Impact**: Using **Pretrained Embeddings** is significantly faster (105s vs 162s for GRU). This is because the input dimension is reduced from the vocabulary size (thousands of dimensions in one-hot) to a dense vector (e.g., 50 dimensions), leading to much smaller matrix multiplications in the first layer.
 
 ![Duration Plot](../../images/gru_mt_duration.png)
 *Figure 2: Breakdown of training vs. evaluation time for the GRU model.*
