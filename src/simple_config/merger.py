@@ -1,13 +1,19 @@
 from copy import deepcopy
 
 def merge_dicts(base: dict, override: dict) -> dict:
-    """
-    Recursively merge two dictionaries.
-    - Dict + Dict -> recursive merge
-    - Scalar -> override
-    - Lists -> replace (NOT merge)
-    
-    The base dictionary is not modified; a new merged dictionary is returned.
+    """Recursively merge two dictionaries according to simple_config rules.
+
+    Rules:
+    - Dict + Dict -> Recursive merge.
+    - Lists -> REPLACE (never merge lists).
+    - Scalars -> Override.
+
+    Args:
+        base: The base configuration dictionary.
+        override: The overriding configuration dictionary.
+
+    Returns:
+        A new dictionary with the merged data. The input dictionaries are not modified.
     """
     # Create a deep copy of the base to avoid mutating input data
     result = deepcopy(base)

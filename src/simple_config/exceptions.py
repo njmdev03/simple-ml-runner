@@ -3,13 +3,19 @@ class SimpleConfigError(Exception):
     pass
 
 class ConfigNotFoundError(SimpleConfigError):
-    """Raised when a config file or schema is not found."""
+    """Raised when a config file or schema is not found in the registry."""
     pass
 
 class ConfigTypeError(SimpleConfigError, TypeError):
-    """Raised when a config value has the wrong type."""
+    """Raised when a configuration value has an incorrect type.
+
+    This exception includes information about the field path and the expected vs actual types.
+    """
     pass
 
 class ConfigValidationError(SimpleConfigError, ValueError):
-    """Raised when a config value is invalid or missing."""
+    """Raised when configuration data is missing required fields or otherwise invalid.
+
+    This exception typically includes the field path that caused the validation failure.
+    """
     pass
