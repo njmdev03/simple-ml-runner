@@ -34,15 +34,17 @@ def test_config_inheritance_from_file(test_configs):
     finally:
         os.chdir(old_cwd)
 
-def test_circular_dependency(tmp_path):
+def test_circular_dependency(write_config):
     """Verify that circular dependencies are detected."""
-    a = tmp_path / "a.yaml"
-    b = tmp_path / "b.yaml"
-    a.write_text(f"config: {b.name}", encoding="utf-8")
-    b.write_text(f"config: {a.name}", encoding="utf-8")
+    # We use filenames to create the cycle
+    write_config({"config": "b.yaml"}, filename="a.yaml")
+    write_config({"config": "a.yaml"}, filename="b.yaml")
 
+    # Change CWD to resolve relative paths in 'config' key
+    import os
+    from pathlib import Path
     old_cwd = os.getcwd()
-    os.chdir(tmp_path)
+    os.chdir(Path(write_config({}, filename="dummy.yaml")).parent)
     try:
         with pytest.raises(SimpleConfigError, match="Circular dependency detected"):
             load_raw_config("a.yaml")
