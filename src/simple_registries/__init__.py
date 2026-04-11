@@ -1,5 +1,2 @@
 from simple_registries.registry import Registry
-
-__all__ = [
-    "Registry"
-]
+from simple_registries.abstract_registry import AbstractClassRegistry

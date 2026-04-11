@@ -3,8 +3,7 @@ from inspect import isclass
 
 
 class Registry:
-    """Object that stores a unique dictionary of registered classes/methods/objects
-    based on keys.
+    """Object that stores a unique dictionary of registered classes/methods/objects based on keys.
 
     Includes a decorator that will register wrapped methods/classes automatically.
     """
@@ -12,9 +11,8 @@ class Registry:
         """Create a new Registry object
 
         Args:
-            instantiate_classes (bool, optional): If item getting registered is
-            a class, instantiate it before registration. This can help create a
-            singleton or global pattern if needed. Defaults to False.
+            instantiate_classes (bool, optional): If item getting registered is a class, instantiate it before
+            registration. This can help create a singleton or global pattern if needed. Defaults to False.
         """
         self._instantiate_classes: bool = instantiate_classes
         self._registry: Dict[str, Any] = {}
@@ -23,12 +21,10 @@ class Registry:
         """Method to register a parser for given file extensions.
 
         Args:
-            item: The item to register. If this item is a class and
-            instantiate_classes was set during construction, then the item will
-            be instantiated before registration.
+            item: The item to register. If this item is a class and instantiate_classes was set during construction,
+            then the item will be instantiated before registration.
             *keys: One or more keys to store the item under.
-            overwrite: If there is already an item registered under a given key,
-            should it be overwritten? Defaults to False.
+            overwrite: If there is already an item registered under a given key, should it be overwritten? Defaults to False.
         """
         if isclass(item) and self._instantiate_classes:
             item = item()
