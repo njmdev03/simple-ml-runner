@@ -1,13 +1,33 @@
-from typing import Dict, Type, Any
+from typing import Union
 from pathlib import Path
 
-class ParserRegistry:
-    """Registry of configuration parsers indexed by file extension."""
-    _parsers: Dict[str, Any] = {}
+from simple_registries import Registry, AbstractClassRegistry
+
+from simple_config.parser.base import BaseParser
+
+
+class ParserRegistry(AbstractClassRegistry):
+    """Global Registry of configuration parsers indexed by file extension
+    (case in-sensitive).
+    """
+    _registry = Registry()
+
+
+    @staticmethod
+    def _normalize_extension(extension: str) -> str:
+        """Normalize the passed extension, stripping the  leading "." if it is present.
+
+        Args:
+            extension (str): The extension string to normalize
+
+        Returns:
+            str: The extension in a normalized format
+        """
+        return extension.lstrip(".").lower()
 
     @classmethod
-    def register(cls, *extensions: str):
-        """Decorator to register a parser for given file extensions.
+    def register(cls, parser_cls: BaseParser, *extensions: str):
+        """Method to register a parser for given file extensions.
 
         Args:
             *extensions: One or more file extensions (e.g., 'yaml', 'json').
@@ -15,36 +35,9 @@ class ParserRegistry:
         Returns:
             The decorator function.
         """
-        def decorator(parser_cls: Type):
-            parser_instance = parser_cls()
-            for ext in extensions:
-                # Normalize extension: remove leading dot if present
-                ext = ext.lstrip(".")
-                cls._parsers[ext] = parser_instance
-            return parser_cls
-        return decorator
+        extensions.map(cls._normalize_extension)
 
-    @classmethod
-    def get_parser(cls, path: str):
-        """Get the appropriate parser instance for a given file path.
-
-        Args:
-            path: The path to the file.
-
-        Returns:
-            A parser instance.
-
-        Raises:
-            ValueError: If no parser is registered for the file extension.
-        """
-        suffix = Path(path).suffix.lstrip(".")
-        if not suffix:
-            # Fallback for paths without extension or if suffix didn't work as expected
-            suffix = path.split(".")[-1]
-
-        if suffix not in cls._parsers:
-            raise ValueError(f"No parser registered for extension: .{suffix} (from {path})")
-        return cls._parsers[suffix]
+        cls._registry.register(parser_cls, extensions)
 
     @classmethod
     def get(cls, extension: str):
@@ -57,9 +50,47 @@ class ParserRegistry:
             The parser instance or None.
         """
         # Normalize extension: remove leading dot if present
-        extension = extension.lstrip(".")
-        return cls._parsers.get(extension)
+        extension = cls._normalize_extension(extension)
+        return cls._registry.get(extension)
 
-def ConfigParser(*extensions: str):
+    @classmethod
+    def clear(cls):
+        cls._registry.clear()
+
+    @classmethod
+    def all(cls):
+        return cls._registry.keys()
+
+    @classmethod
+    def decorator(cls, *extensions) -> callable:
+        def decorator(cls):
+            ParserRegistry.register(cls, *extensions)
+
+            return cls
+
+        return decorator
+
+    @classmethod
+    def get_parser(cls, path: Union[Path, str]):
+        """Get the appropriate parser instance for a given file path.
+
+        Args:
+            path: The path to the file.
+
+        Returns:
+            A parser instance.
+
+        Raises:
+            ValueError: If no parser is registered for the file extension.
+        """
+        if path is str:
+            path = Path(path)
+
+        extension = cls._normalize_extension(path.suffix)
+
+        return cls._registry.get(extension)
+
+
+def ConfigParser(cls, *extensions: str):
     """Decorator to register a config parser for one or more file extensions."""
-    return ParserRegistry.register(*extensions)
+    return ParserRegistry.decorator(extensions)
