@@ -3,6 +3,8 @@ try:
 except ImportError:
     import toml as tomllib  # type: ignore
 
+from pathlib import Path
+
 from simple_config.parser.registry import ConfigParser
 from simple_config.parser.base import BaseParser
 
@@ -10,7 +12,8 @@ from simple_config.parser.base import BaseParser
 class TOMLParser(BaseParser):
     """Parser for TOML configuration files."""
 
-    def load(self, path: str) -> dict:
+    @classmethod
+    def load(cls, path: Path) -> dict:
         """Load a TOML file.
 
         Args:
