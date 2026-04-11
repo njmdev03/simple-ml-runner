@@ -2,3 +2,4 @@
 **/__pycache__
 # Ignore build files
 **/**.egg-info
+**/.coverage
