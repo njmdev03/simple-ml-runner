@@ -1,14 +1,14 @@
 import configparser
 from pathlib import Path
 
-from simple_config.parser.registry import ConfigParser
 from simple_config.parser.base import BaseParser
 
-@ConfigParser("ini", "cfg")
+
 class INIParser(BaseParser):
     """Parser for INI configuration files."""
 
-    def load(self, path: Path) -> dict:
+    @classmethod
+    def load(cls, path: Path) -> dict:
         """Load an INI file.
 
         Args:

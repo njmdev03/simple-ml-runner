@@ -8,8 +8,6 @@ from simple_config.exceptions import (
     ConfigTypeError,
 )
 
-import simple_config.parser  # Trigger registration of parsers
-
 __all__ = [
     "build_config",
     "Config",

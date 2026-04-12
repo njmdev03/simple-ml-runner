@@ -1,4 +1,4 @@
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, List
 from inspect import isclass
 
 
@@ -17,23 +17,33 @@ class Registry:
         self._instantiate_classes: bool = instantiate_classes
         self._registry: Dict[str, Any] = {}
 
-    def register(self, item: Any, *keys: str, overwrite: bool = False) -> None:
+    def register(self, item: Any, *keys: Any, overwrite: bool = False) -> Union[List[Any], None]:
         """Method to register a parser for given file extensions.
 
         Args:
             item: The item to register. If this item is a class and instantiate_classes was set during construction,
             then the item will be instantiated before registration.
             *keys: One or more keys to store the item under.
-            overwrite: If there is already an item registered under a given key, should it be overwritten? Defaults to False.
+            overwrite: If there is already an item registered under a given key, should it be overwritten? Defaults to
+            False.
+
+        Returns:
+            Union[Any, None]: Returns the list of keys the item was registered under, or None if the item was not
+            registered.
         """
         if isclass(item) and self._instantiate_classes:
             item = item()
 
+        reg_keys = []
+
         for key in keys:
             if overwrite or self._registry.get(key) == None:
                 self._registry[key] = item
+                reg_keys.append(key)
 
-    def get(self, key: str) -> Union[Any, None]:
+        return None if reg_keys == [] else reg_keys
+
+    def get(self, key: Any) -> Union[Any, None]:
         """Get a registered item by its key.
 
         Args:
@@ -44,12 +54,43 @@ class Registry:
         """
         return self._registry.get(key)
 
+    def remove(self, key: Any) -> Union[Any, None]:
+        """Remove the item registered at the given key.
+
+        Args:
+            key (Any): The key to delete the entry of
+
+        Returns:
+            Union[Any, None]: Return the deleted value if something was removed, otherwise None if nothing was removed.
+        """
+        return self._registry.pop(key, None)
+
+    def deregister(self, item: Any) -> Union[List[Any], None]:
+        """Removed an item from the registry at all of the keys it was registered to. This is an expensive operation
+        since a reverse search/lookup must be performed for each item removed.
+
+        Args:
+            item (Any): The item to remove from the registry
+
+        Returns:
+            Union[List[Any], None]: None if no instances of the item were found, otherwise a list of keys that the item
+            was registered under.
+        """
+        removed_keys = []
+
+        for k, v in self._registry.items():
+            if v == item:
+                removed_keys.append(k)
+                self._registry.pop(k)
+
+        return None if removed_keys == [] else removed_keys
+
     def clear(self) -> None:
         """Remove all registered items from the registry.
         """
         self._registry.clear()
 
-    def all(self) -> list:
+    def all(self) -> List:
         """Get all of the registered items. The returned list may contain
         duplicates if an item is registered under multiple keys.
 
@@ -58,7 +99,7 @@ class Registry:
         """
         return self._registry.values()
 
-    def keys(self) -> list:
+    def keys(self) -> List:
         """Get all of the registered keys.
 
         Returns:

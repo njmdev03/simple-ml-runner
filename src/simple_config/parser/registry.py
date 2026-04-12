@@ -1,9 +1,12 @@
-from typing import Union
+from typing import Union, Type, Any, List
 from pathlib import Path
 
 from simple_registries import Registry, AbstractClassRegistry
 
-from simple_config.parser.base import BaseParser
+from simple_config.parser.ini import INIParser
+from simple_config.parser.json import JSONParser
+from simple_config.parser.yaml import YAMLParser
+from simple_config.parser.toml import TOMLParser
 
 
 class ParserRegistry(AbstractClassRegistry):
@@ -13,20 +16,8 @@ class ParserRegistry(AbstractClassRegistry):
     _registry = Registry()
 
 
-    @staticmethod
-    def _normalize_extension(extension: str) -> str:
-        """Normalize the passed extension, stripping the  leading "." if it is present.
-
-        Args:
-            extension (str): The extension string to normalize
-
-        Returns:
-            str: The extension in a normalized format
-        """
-        return extension.lstrip(".").lower()
-
     @classmethod
-    def register(cls, parser_cls: BaseParser, *extensions: str):
+    def register(cls, parser_cls: Type, *extensions: str):
         """Method to register a parser for given file extensions.
 
         Args:
@@ -35,9 +26,9 @@ class ParserRegistry(AbstractClassRegistry):
         Returns:
             The decorator function.
         """
-        extensions.map(cls._normalize_extension)
+        map(cls._normalize_extension, extensions)
 
-        cls._registry.register(parser_cls, extensions)
+        cls._registry.register(parser_cls, *extensions)
 
     @classmethod
     def get(cls, extension: str):
@@ -52,6 +43,14 @@ class ParserRegistry(AbstractClassRegistry):
         # Normalize extension: remove leading dot if present
         extension = cls._normalize_extension(extension)
         return cls._registry.get(extension)
+
+    @classmethod
+    def remove(cls, key: str) -> Union[Any, None]:
+        return cls._registry.remove(key)
+
+    @classmethod
+    def deregister(cls, item: Any) -> Union[List[Any], None]:
+        return cls._registry.deregister(item)
 
     @classmethod
     def clear(cls):
@@ -90,7 +89,29 @@ class ParserRegistry(AbstractClassRegistry):
 
         return cls._registry.get(extension)
 
+    @staticmethod
+    def _normalize_extension(extension: str) -> str:
+        """Normalize the passed extension, stripping the  leading "." if it is present.
 
-def ConfigParser(cls, *extensions: str):
+        Args:
+            extension (str): The extension string to normalize
+
+        Returns:
+            str: The extension in a normalized format
+        """
+        return extension.lstrip(".").lower()
+
+    @classmethod
+    def register_builtin_providers(cls):
+        """Trigger the registration of basic parsers bundled in the library. This allows users to provide their own
+        overrides for the default providers if these extensions are loaded later than user code.
+        """
+        cls.register(INIParser, "ini", "cfg")
+        cls.register(JSONParser, "json")
+        cls.register(YAMLParser, "yaml", "yml")
+        cls.register(TOMLParser, "toml")
+
+
+def ConfigParser(*extensions: str):
     """Decorator to register a config parser for one or more file extensions."""
-    return ParserRegistry.decorator(extensions)
+    return ParserRegistry.decorator(*extensions)

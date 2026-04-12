@@ -1,14 +1,14 @@
 import yaml
 from pathlib import Path
 
-from simple_config.parser.registry import ConfigParser
 from simple_config.parser.base import BaseParser
 
-@ConfigParser("yaml", "yml")
+
 class YAMLParser(BaseParser):
     """Parser for YAML configuration files."""
 
-    def load(self, path: Path) -> dict:
+    @classmethod
+    def load(cls, path: Path) -> dict:
         """Load a YAML file.
 
         Args:

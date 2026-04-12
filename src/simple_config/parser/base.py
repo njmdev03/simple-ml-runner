@@ -6,7 +6,7 @@ class BaseParser(ABC):
 
     @classmethod
     @abstractmethod
-    def load(path: Path) -> dict:
+    def load(cls, path: Path) -> dict:
         """Load a configuration file into a dictionary.
 
         Args:

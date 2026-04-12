@@ -5,10 +5,9 @@ except ImportError:
 
 from pathlib import Path
 
-from simple_config.parser.registry import ConfigParser
 from simple_config.parser.base import BaseParser
 
-@ConfigParser("toml")
+
 class TOMLParser(BaseParser):
     """Parser for TOML configuration files."""
 
