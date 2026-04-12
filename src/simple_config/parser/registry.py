@@ -26,7 +26,7 @@ class ParserRegistry(AbstractClassRegistry):
         Returns:
             The decorator function.
         """
-        map(cls._normalize_extension, extensions)
+        extensions = [cls._normalize_extension(ext) for ext in extensions]
 
         cls._registry.register(parser_cls, *extensions)
 
@@ -58,6 +58,15 @@ class ParserRegistry(AbstractClassRegistry):
 
     @classmethod
     def all(cls):
+        return cls._registry.all()
+    
+    @classmethod
+    def keys(cls) -> List:
+        """Get all of the registered keys.
+
+        Returns:
+            list: All of the registered keys.
+        """
         return cls._registry.keys()
 
     @classmethod
