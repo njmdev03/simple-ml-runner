@@ -3,7 +3,7 @@ from dataclasses import fields, is_dataclass, MISSING
 
 from simple_config.config_registry import ConfigRegistry
 from simple_config.loader import load_raw_config
-from simple_config.merger import merge_dicts
+from simple_config.utils import merge_dicts
 from simple_config.exceptions import SimpleConfigError, ConfigNotFoundError, ConfigValidationError, ConfigTypeError
 
 def build_config(
