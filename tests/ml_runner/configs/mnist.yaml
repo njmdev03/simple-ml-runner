@@ -1,8 +1,0 @@
-config:
-  - base.yaml
-
-dataset:
-  batch_size: 64
-
-trainer:
-  device: cuda

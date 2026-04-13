@@ -1,6 +1,0 @@
-config:
-  - bad_config.yaml
-
-dataset:
-  name: mnist
-  batch_size: 32
