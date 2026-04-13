@@ -1,7 +1,7 @@
 from typing import Union, List, Optional, Any
 from pathlib import Path
 from simple_config.loader import load_raw_config as _load_raw_config
-from simple_config.merger import merge_dicts as _merge_dicts
+from simple_config.utils import merge_dicts as _merge_dicts
 
 def load_config(path: Union[str, Path]) -> dict:
     """
