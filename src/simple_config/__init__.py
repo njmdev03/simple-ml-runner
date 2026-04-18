@@ -1,4 +1,4 @@
-from simple_config.builder import build_config
+# from simple_config.builder import build_config
 from simple_config.config_registry import Config, Mapping, ConfigRegistry
 from simple_config.parser.registry import ConfigParser
 from simple_config.exceptions import (
