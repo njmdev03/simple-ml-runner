@@ -1,25 +1,22 @@
 from pathlib import Path
 import pytest
 from typing import Dict
+from copy import deepcopy
 
 from simple_config.loader import ConfigLoader, ConfigNotFoundException, UnsupportedConfigException, CircularDependencyException
 from simple_config.parser.base import BaseParser
-from simple_config.parser.registry import ParserRegistry, ConfigParser
+from simple_config.parser.registry import ParserRegistry
 
 
-@ConfigParser("test")
 class MockParser(BaseParser):
     _configs: Dict[Path, dict] = {}
 
-    @classmethod
     def load(cls, path: Path):
          return cls._configs.get(path)
 
-    @classmethod
     def add_config(cls, path:Path, config: dict):
         cls._configs[path] = config
 
-    @classmethod
     def clear(cls):
         cls._configs.clear()
 
@@ -33,100 +30,138 @@ class MockPath(Path):
         return self._exists
 
 
-basic_conf = {
-    "key1": 1,
-    "key2": 1
-}
+@pytest.fixture
+def parser():
+    mock_parser = MockParser()
 
-MockParser.add_config(MockPath("basic.test"), basic_conf)
+    parser_reg = ParserRegistry()
 
-basic_conf_overlay = {
-    "config": [MockPath("basic.test")],
-    "key2": 2
-}
+    parser_reg.register(mock_parser, "test")
 
-MockParser.add_config(MockPath("basic_over.test"), basic_conf_overlay)
+    return mock_parser, parser_reg
 
-dep_1 = {
-    "key1": 2,
-    "key2": 1
-}
+# dep_1 = {
+#     "key1": 2,
+#     "key2": 1
+# }
 
-dep_2 = {
-    "key1": 3,
-    "key3": 1,
-}
+# dep_2 = {
+#     "key1": 3,
+#     "key3": 1,
+# }
 
-multi_dep = {
-    "config": [MockPath("dep_1.test"), MockPath("dep_2.test")],
-    "key1": 1,
-    "key2": 1,
-    "key3": 1
-}
+# multi_dep = {
+#     "config": [MockPath("dep_1.test"), MockPath("dep_2.test")],
+#     "key1": 1,
+#     "key2": 1,
+#     "key3": 1
+# }
 
-MockParser.add_config(MockPath("dep_1.test"), dep_1)
-MockParser.add_config(MockPath("dep_2.test"), dep_2)
-MockParser.add_config(MockPath("multi_dep.test"), multi_dep )
+# mock_parser.add_config(MockPath("dep_1.test"), dep_1)
+# mock_parser.add_config(MockPath("dep_2.test"), dep_2)
+# mock_parser.add_config(MockPath("multi_dep.test"), multi_dep )
 
 
-circular_1_depth_0 = {
-    "config": [MockPath("circular1_d0.test")]
-}
+# circular_1_depth_0 = {
+#     "config": [MockPath("circular1_d0.test")]
+# }
 
-MockParser.add_config(MockPath("circular1_d0.test"), circular_1_depth_0)
+# mock_parser.add_config(MockPath("circular1_d0.test"), circular_1_depth_0)
 
-circular_1_depth_1 = {
-    "config": [MockPath("circular2_d1.test")]
-}
+# circular_1_depth_1 = {
+#     "config": [MockPath("circular2_d1.test")]
+# }
 
-circular_2_depth_1 = {
-    "config": [MockPath("circular1_d1.test")]
-}
+# circular_2_depth_1 = {
+#     "config": [MockPath("circular1_d1.test")]
+# }
 
-MockParser.add_config(MockPath("circular1_d1.test"), circular_1_depth_1)
-MockParser.add_config(MockPath("circular2_d1.test"), circular_2_depth_1)
+# mock_parser.add_config(MockPath("circular1_d1.test"), circular_1_depth_1)
+# mock_parser.add_config(MockPath("circular2_d1.test"), circular_2_depth_1)
 
-circular_1_depth_2 = {
-    "config": [MockPath("circular2_d2.test")]
-}
+# circular_1_depth_2 = {
+#     "config": [MockPath("circular2_d2.test")]
+# }
 
-circular_2_depth_2 = {
-    "config": [MockPath("circular3_d2.test")]
-}
+# circular_2_depth_2 = {
+#     "config": [MockPath("circular3_d2.test")]
+# }
 
-circular_3_depth_2 = {
-    "config": [MockPath("circular1_d2.test")]
-}
+# circular_3_depth_2 = {
+#     "config": [MockPath("circular1_d2.test")]
+# }
 
-MockParser.add_config(MockPath("circular1_d2.test"), circular_1_depth_2)
-MockParser.add_config(MockPath("circular2_d2.test"), circular_2_depth_2)
-MockParser.add_config(MockPath("circular3_d2.test"), circular_3_depth_2)
+# mock_parser.add_config(MockPath("circular1_d2.test"), circular_1_depth_2)
+# mock_parser.add_config(MockPath("circular2_d2.test"), circular_2_depth_2)
+# mock_parser.add_config(MockPath("circular3_d2.test"), circular_3_depth_2)
 
 
-def test_resolve_path():
-    assert ConfigLoader._resolve_to_dict(MockPath("basic.test")) == basic_conf
+def test_resolve_path(parser):
+    mock_parser, parser_reg = parser
 
-def test_resolve_invalid_path():
+    basic_conf = {
+        "key1": 1,
+        "key2": 1
+    }
+
+    mock_parser.add_config(MockPath("basic.test"), deepcopy(basic_conf))
+
+    confl = ConfigLoader(parser_reg)
+
+    assert confl._resolve_to_dict(MockPath("basic.test")) == basic_conf
+
+def test_resolve_invalid_path(parser):
+    mock_parser, parser_reg = parser
+
+    confl = ConfigLoader(parser_reg)
+
     with pytest.raises(ConfigNotFoundException):
-        ConfigLoader._resolve_to_dict(MockPath("invalid.test", exists=False))
+        confl._resolve_to_dict(MockPath("invalid.test", exists=False))
 
-def test_resolve_no_parser():
-    assert ParserRegistry.get("invalid") == None
+def test_resolve_no_parser(parser):
+    mock_parser, parser_reg = parser
+
+    assert parser_reg.get("invalid") == None
+
+    confl = ConfigLoader(parser_reg)
 
     with pytest.raises(UnsupportedConfigException):
-        ConfigLoader._resolve_to_dict(MockPath("basic.invalid"))
-
+        confl._resolve_to_dict(MockPath("basic.invalid"))
 
 def test_load_dict():
-    assert ConfigLoader.load_config(basic_conf) == basic_conf
+    basic_conf = {
+        "key1": 1,
+        "key2": 1
+    }
 
-def test_load_dict_with_dependencies():
+    confl = ConfigLoader(ParserRegistry())
+
+    assert confl.load_config(deepcopy(basic_conf)) == basic_conf
+
+def test_load_dict_with_dependencies(parser):
+    mock_parser, parser_reg = parser
+
+    basic_conf = {
+        "key1": 1,
+        "key2": 1
+    }
+
+    basic_conf_overlay = {
+        "config": [MockPath("basic.test")],
+        "key2": 2
+    }
+
+    mock_parser.add_config(MockPath("basic.test"), deepcopy(basic_conf))
+    mock_parser.add_config(MockPath("basic_over.test"), basic_conf_overlay)
+
     merged = {
         "key1": 1,
         "key2": 2,
     }
 
-    assert ConfigLoader.load_config(basic_conf_overlay) == merged
+    confl = ConfigLoader(parser_reg)
+
+    assert confl.load_config(basic_conf_overlay) == merged
 
 def test_load_path():
     pass

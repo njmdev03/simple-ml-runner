@@ -8,11 +8,13 @@ class ConfigLoader:
     # _cache: Dict[Path, dict] = {}
 
     # @classmethod
-    # def clear_cache(cls):
-    #     cls._cache = {}
+    # def clear_cache(self):
+    #     self._cache = {}
 
-    @classmethod
-    def _resolve_to_dict(cls, config: Path) -> dict:
+    def __init__(self, parser_reg: ParserRegistry):
+        self._parser_reg = parser_reg
+
+    def _resolve_to_dict(self, config: Path) -> dict:
         """Reads a file path to a dict. Will also read from a cache of file paths that have already been resolved.
 
         Args:
@@ -22,20 +24,19 @@ class ConfigLoader:
         Returns:
             dict: the loaded config dictionary
         """
-        # if cls._cache.get(config):
-        #     return cls._cache.get(config)
+        # if self._cache.get(config):
+        #     return self._cache.get(config)
 
         if not config.exists():
             raise ConfigNotFoundException
 
-        if not ParserRegistry.get_parser(config):
+        if not self._parser_reg.get_parser(config):
             raise UnsupportedConfigException
 
-        return ParserRegistry.get_parser(config).load(config)
+        return self._parser_reg.get_parser(config).load(config)
 
-    @classmethod
     def _load_config(
-            cls,
+            self,
             config: Union[Dict, Path, str],
             # seen: Optional[Set[Path]] = [],
             inheritance_key: str = "config"
@@ -48,7 +49,7 @@ class ConfigLoader:
 
         # Resolve Path to a dict
         if isinstance(config, Path):
-            top_dict = cls._resolve_to_dict(config)
+            top_dict = self._resolve_to_dict(config)
 
             # Save explored paths for circular dependency checks.
             # new_seen.append(config)
@@ -60,32 +61,30 @@ class ConfigLoader:
         if inherits:
             top_dict.pop(inheritance_key)
 
-            base_dict = cls._load_multi_config(*inherits, inheritance_key=inheritance_key)
+            base_dict = self._load_multi_config(*inherits, inheritance_key=inheritance_key)
 
             return merge_dicts(base_dict, top_dict)
         else:
             return top_dict
 
-    @classmethod
     def _load_multi_config(
-        cls,
+        self,
         *configs: Union[Dict, Path, str],
         inheritance_key: str = "config"
         ) -> dict:
         result = {}
 
         for config in configs:
-            merge_dicts(result, cls._load_config(config, inheritance_key=inheritance_key))
+            merge_dicts(result, self._load_config(config, inheritance_key=inheritance_key))
 
         return result
 
-    @classmethod
     def load_config(
-        cls,
+        self,
         *config: Union[Dict, Path, str],
         inheritance_key: str = "config"
         ) -> dict:
-        return cls._load_multi_config(*config, inheritance_key=inheritance_key)
+        return self._load_multi_config(*config, inheritance_key=inheritance_key)
 
 class ConfigNotFoundException(Exception):
     pass
