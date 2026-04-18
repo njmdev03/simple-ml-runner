@@ -107,15 +107,15 @@ class Registry:
         """
         return self._registry.keys()
 
-    def decorator(self, *keys) -> callable:
-        """Get a decorator function that handles registering the wrapped
-        method/class under the given keys.
+    # def decorator(self, *keys) -> callable:
+    #     """Get a decorator function that handles registering the wrapped
+    #     method/class under the given keys.
 
-        Returns:
-            callable: The decorator method to wrap the method/class in.
-        """
-        def decorator(item):
-            self.register(item, *keys)
-            return item
+    #     Returns:
+    #         callable: The decorator method to wrap the method/class in.
+    #     """
+    #     def decorator(item):
+    #         self.register(item, *keys)
+    #         return item
 
-        return decorator
+    #     return decorator

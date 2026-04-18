@@ -43,7 +43,7 @@ class AbstractClassRegistry(ABC):
     def keys(cls) -> List:
         return
 
-    @classmethod
-    @abstractmethod
-    def decorator(cls, *keys) -> callable:
-        return
+    # @classmethod
+    # @abstractmethod
+    # def decorator(cls, *keys) -> callable:
+    #     return

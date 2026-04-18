@@ -7,7 +7,6 @@ from simple_config.parser.yaml import YAMLParser
 from simple_config.parser.toml import TOMLParser
 
 
-@pytest.mark.xdist_group(name="parser-registry")
 def test_normalize_extensions():
     norm = ParserRegistry._normalize_extension
 
@@ -18,37 +17,38 @@ def test_normalize_extensions():
     assert norm(".YamL") == "yaml"
     assert norm(".jSON") == "json"
 
-@pytest.mark.xdist_group(name="parser-registry")
 def test_bundled_registrations():
-    ParserRegistry.clear()
+    pr = ParserRegistry()
 
-    ParserRegistry.register_builtin_providers()
+    pr.clear()
 
-    assert ParserRegistry.all() != []
+    pr.register_builtin_providers()
 
-    assert ParserRegistry.get("ini") == INIParser
-    assert ParserRegistry.get("cfg") == INIParser
-    assert ParserRegistry.get("json") == JSONParser
-    assert ParserRegistry.get("yml") == YAMLParser
-    assert ParserRegistry.get("yaml") == YAMLParser
-    assert ParserRegistry.get("toml") == TOMLParser
+    assert pr.all() != []
 
-@pytest.mark.xdist_group(name="parser-registry")
+    assert pr.get("ini") == INIParser
+    assert pr.get("cfg") == INIParser
+    assert pr.get("json") == JSONParser
+    assert pr.get("yml") == YAMLParser
+    assert pr.get("yaml") == YAMLParser
+    assert pr.get("toml") == TOMLParser
+
 def test_clear():
-    ParserRegistry.register("json") == JSONParser
+    pr = ParserRegistry()
 
-    assert list(ParserRegistry.all()) != []
+    pr.register(JSONParser, "json")
 
-    ParserRegistry.clear()
+    assert list(pr.all()) != []
 
-    assert list(ParserRegistry.all()) == []
+    pr.clear()
 
-@pytest.mark.xdist_group(name="parser-registry")
+    assert list(pr.all()) == []
+
 def test_parser_registration_is_normalized():
-    ParserRegistry.clear()
+    pr = ParserRegistry()
 
-    assert list(ParserRegistry.keys()) == []
+    assert list(pr.keys()) == []
 
-    ParserRegistry.register(INIParser, ".INI")
+    pr.register(INIParser, ".INI")
 
-    assert list(ParserRegistry.keys()) == ["ini"]
+    assert list(pr.keys()) == ["ini"]
