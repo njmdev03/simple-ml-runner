@@ -8,7 +8,7 @@ from simple_config.exceptions import (
 )
 
 __all__ = [
-    "build_config",
+    # "build_config",
     "Config",
     "Mapping",
     "ConfigRegistry",
