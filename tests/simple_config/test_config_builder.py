@@ -1,7 +1,7 @@
 import pytest
 from dataclasses import dataclass, field
 
-from simple_config.builder import ConfigBuilder, MissingFieldException, VariantFormatException
+from simple_config.builder import ConfigBuilder, MissingFieldException, VariantFormatException, ConfigTypeError
 from simple_config.schema import Variant
 
 
@@ -268,5 +268,5 @@ def test_invalid_type_coercion():
         val: int
 
     builder = ConfigBuilder(Schema)
-    with pytest.raises((TypeError, ValueError)):
+    with pytest.raises(ConfigTypeError):
         builder.build({"val": "not-an-int"})
