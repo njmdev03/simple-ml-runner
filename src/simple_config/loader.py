@@ -1,18 +1,17 @@
 from pathlib import Path
-from typing import Union, Optional, Set, Dict
+from typing import Union, List, Dict
+from copy import deepcopy, copy
+
 from simple_config.parser.registry import ParserRegistry
 from simple_config.utils import merge_dicts
 
 
 class ConfigLoader:
-    # _cache: Dict[Path, dict] = {}
+    _cache: Dict[Path, dict] = {}
 
-    # @classmethod
-    # def clear_cache(self):
-    #     self._cache = {}
-
-    def __init__(self, parser_reg: ParserRegistry):
+    def __init__(self, parser_reg: ParserRegistry, cache_configs: bool = False):
         self._parser_reg = parser_reg
+        self._use_cache = cache_configs
 
     def _resolve_to_dict(self, config: Path) -> dict:
         """Reads a file path to a dict. Will also read from a cache of file paths that have already been resolved.
@@ -24,8 +23,8 @@ class ConfigLoader:
         Returns:
             dict: the loaded config dictionary
         """
-        # if self._cache.get(config):
-        #     return self._cache.get(config)
+        if self._use_cache and self._cache.get(config):
+            return self._cache.get(config)
 
         if not config.exists():
             raise ConfigNotFoundException
@@ -38,44 +37,51 @@ class ConfigLoader:
     def _load_config(
             self,
             config: Union[Dict, Path, str],
-            # seen: Optional[Set[Path]] = [],
+            seen: List[Path] = [],
             inheritance_key: str = "config"
         ) -> dict:
-        # new_seen = seen
+        new_seen = copy(seen)
 
         # Resolve string to a path
         if isinstance(config, str):
             config = Path(config)
 
         # Resolve Path to a dict
-        if isinstance(config, Path):
-            top_dict = self._resolve_to_dict(config)
-
-            # Save explored paths for circular dependency checks.
-            # new_seen.append(config)
+        if isinstance(config, dict):
+            top_dict = deepcopy(config)
         else:
-            top_dict = config
+            if seen.__contains__(config):
+                raise CircularDependencyException
+
+            new_seen.append(config)
+            top_dict = deepcopy(self._resolve_to_dict(config))
 
         inherits = top_dict.get(inheritance_key)
 
         if inherits:
             top_dict.pop(inheritance_key)
 
-            base_dict = self._load_multi_config(*inherits, inheritance_key=inheritance_key)
+            base_dict = self._load_multi_config(*inherits, seen=new_seen, inheritance_key=inheritance_key)
 
-            return merge_dicts(base_dict, top_dict)
+            result = merge_dicts(base_dict, top_dict)
         else:
-            return top_dict
+            result = top_dict
+
+        if isinstance(config, Path):
+            self._cache[config] = top_dict
+
+        return result
 
     def _load_multi_config(
         self,
         *configs: Union[Dict, Path, str],
+        seen: List[Path] = [],
         inheritance_key: str = "config"
         ) -> dict:
         result = {}
 
         for config in configs:
-            merge_dicts(result, self._load_config(config, inheritance_key=inheritance_key))
+            merge_dicts(result, self._load_config(config, seen=seen, inheritance_key=inheritance_key))
 
         return result
 
