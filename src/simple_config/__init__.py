@@ -25,9 +25,10 @@ __all__ = [
 
     # Loader
     "ConfigLoader",
-    "ConfigNotFoundException",
-    "UnsupportedConfigException",
-    "CircularDependencyException",
+    "ConfigLoaderError",
+    "ConfigFileNotFoundError",
+    "CircularInheritanceError",
+    "ConfigParserMissingError"
 
     # schema
     "Variant",
