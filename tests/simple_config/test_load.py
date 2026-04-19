@@ -3,7 +3,7 @@ import pytest
 from typing import Dict
 from copy import deepcopy
 
-from simple_config.loader import ConfigLoader, ConfigNotFoundException, UnsupportedConfigException, CircularDependencyException
+from simple_config.loader import ConfigLoader, ConfigFileNotFoundError, ConfigParserMissingError, CircularInheritanceError
 from simple_config.parser.base import BaseParser
 from simple_config.parser.registry import ParserRegistry
 
@@ -56,8 +56,9 @@ def test_resolve_invalid_path(fs, parser):
 
     confl = ConfigLoader(parser_reg)
 
-    with pytest.raises(ConfigNotFoundException):
+    with pytest.raises(ConfigFileNotFoundError) as exc:
         confl._resolve_to_dict(Path("invalid.test"))
+    assert "Config file not found" in str(exc.value)
 
 def test_resolve_no_parser(fs, parser):
     _, parser_reg = parser
@@ -68,8 +69,9 @@ def test_resolve_no_parser(fs, parser):
     path = Path("basic.invalid")
     fs.create_file(path)
 
-    with pytest.raises(UnsupportedConfigException):
+    with pytest.raises(ConfigParserMissingError) as exc:
         confl._resolve_to_dict(path)
+    assert "No parser registered" in str(exc.value)
 
 def test_load_dict():
     basic_conf = {
@@ -216,8 +218,9 @@ def test_self_dependency(fs, parser):
     mock_parser.add_config(path, conf)
 
     confl = ConfigLoader(parser_reg)
-    with pytest.raises(CircularDependencyException):
+    with pytest.raises(CircularInheritanceError) as exc:
         confl.load_config(path)
+    assert "Circular inheritance" in str(exc.value)
 
 def test_circular_dependency_depth_1(fs, parser):
     mock_parser, parser_reg = parser
@@ -230,7 +233,7 @@ def test_circular_dependency_depth_1(fs, parser):
     mock_parser.add_config(p2, {"config": [p1]})
 
     confl = ConfigLoader(parser_reg)
-    with pytest.raises(CircularDependencyException):
+    with pytest.raises(CircularInheritanceError):
         confl.load_config(p1)
 
 def test_circular_dependency_depth_2(fs, parser):
@@ -247,7 +250,7 @@ def test_circular_dependency_depth_2(fs, parser):
     mock_parser.add_config(p3, {"config": [p1]})
 
     confl = ConfigLoader(parser_reg)
-    with pytest.raises(CircularDependencyException):
+    with pytest.raises(CircularInheritanceError):
         confl.load_config(p1)
 
 def test_cache_hits(fs, parser):

@@ -7,9 +7,10 @@ from simple_config.builder import (
 )
 from simple_config.loader import (
     ConfigLoader,
-    ConfigNotFoundException,
-    UnsupportedConfigException,
-    CircularDependencyException
+    ConfigLoaderError,
+    ConfigFileNotFoundError,
+    CircularInheritanceError,
+    ConfigParserMissingError
 )
 from simple_config.schema import Variant
 
