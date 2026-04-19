@@ -11,9 +11,11 @@ from simple_config.parser.registry import ParserRegistry
 class MockParser(BaseParser):
     def __init__(self):
         self._configs: Dict[Path, dict] = {}
+        self.call_count = 0
 
     def load(self, path: Path):
-         return self._configs.get(path)
+        self.call_count += 1
+        return self._configs.get(path)
 
     def add_config(self, path: Path, config: dict):
         self._configs[path] = config
@@ -247,3 +249,36 @@ def test_circular_dependency_depth_2(fs, parser):
     confl = ConfigLoader(parser_reg)
     with pytest.raises(CircularDependencyException):
         confl.load_config(p1)
+
+def test_cache_hits(fs, parser):
+    mock_parser, parser_reg = parser
+
+    path = Path("test.test")
+    fs.create_file(path)
+    mock_parser.add_config(path, {"a": 1})
+
+    # Enable caching
+    confl = ConfigLoader(parser_reg, cache_configs=True)
+
+    # First load
+    confl.load_config(path)
+    assert mock_parser.call_count == 1
+
+    # Second load (should hit cache)
+    confl.load_config(path)
+    assert mock_parser.call_count == 1
+
+def test_cache_disabled(fs, parser):
+    mock_parser, parser_reg = parser
+
+    path = Path("test.test")
+    fs.create_file(path)
+    mock_parser.add_config(path, {"a": 1})
+
+    # Disable caching
+    confl = ConfigLoader(parser_reg, cache_configs=False)
+
+    confl.load_config(path)
+    confl.load_config(path)
+
+    assert mock_parser.call_count == 2

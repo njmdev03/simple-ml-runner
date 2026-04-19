@@ -7,11 +7,11 @@ from simple_config.utils import merge_dicts
 
 
 class ConfigLoader:
-    _cache: Dict[Path, dict] = {}
 
     def __init__(self, parser_reg: ParserRegistry, cache_configs: bool = False):
-        self._parser_reg = parser_reg
-        self._use_cache = cache_configs
+        self._parser_reg: ParserRegistry = parser_reg
+        self._use_cache: bool = cache_configs
+        self._cache: Dict[Path, dict] = {}
 
     def _resolve_to_dict(self, config: Path) -> dict:
         """Reads a file path to a dict. Will also read from a cache of file paths that have already been resolved.
