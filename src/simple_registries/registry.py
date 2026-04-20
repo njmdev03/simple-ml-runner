@@ -78,7 +78,7 @@ class Registry:
         """
         removed_keys = []
 
-        for k, v in self._registry.items():
+        for k, v in list(self._registry.items()):
             if v == item:
                 removed_keys.append(k)
                 self._registry.pop(k)
@@ -106,16 +106,3 @@ class Registry:
             list: All of the registered keys.
         """
         return self._registry.keys()
-
-    # def decorator(self, *keys) -> callable:
-    #     """Get a decorator function that handles registering the wrapped
-    #     method/class under the given keys.
-
-    #     Returns:
-    #         callable: The decorator method to wrap the method/class in.
-    #     """
-    #     def decorator(item):
-    #         self.register(item, *keys)
-    #         return item
-
-    #     return decorator

@@ -161,3 +161,41 @@ def test_registry_keys():
     assert len(reg.keys()) == 2
     assert reg.keys().__contains__("one")
     assert reg.keys().__contains__("One")
+
+"""
+    Test Removal
+"""
+def test_registry_remove():
+    reg = Registry()
+    reg.register(1, "one")
+
+    val = reg.remove("one")
+
+    assert val == 1
+    assert reg.get("one") is None
+    assert len(reg.all()) == 0
+
+def test_registry_remove_missing():
+    reg = Registry()
+
+    val = reg.remove("missing")
+
+    assert val is None
+
+def test_registry_deregister():
+    reg = Registry()
+    item = {"data": "test"}
+    reg.register(item, "a", "b", "c")
+
+    keys = reg.deregister(item)
+
+    assert set(keys) == {"a", "b", "c"}
+    assert len(reg.all()) == 0
+    assert reg.get("a") is None
+
+def test_registry_deregister_missing():
+    reg = Registry()
+
+    keys = reg.deregister("missing")
+
+    assert keys is None
