@@ -1,2 +1,1 @@
 from simple_registries.registry import Registry
-from simple_registries.abstract_registry import AbstractClassRegistry
