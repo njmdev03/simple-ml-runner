@@ -20,7 +20,7 @@ def register_arguments(ext_manager: ExtensionManager, exporter_manager: Exporter
     # Core Positional Arguments
     # -------------------------
     CLIRegistry.register(CLIArgument("operation", help="Operation to perform",
-                                choices=["batch", "run", "stats", "export"]))
+                                choices=["batch", "run", "export"]))
 
     # -------------------------
     # Configuration Arguments
@@ -134,8 +134,6 @@ def main():
             run_cfg = load_config([config], overrides, ext_manager)
             run_job(run_cfg, args, ext_manager)
 
-    elif op == 'stats':
-        print("Statistics not yet implemented")
     elif op == 'export':
         # Export dispatcher: single-export or config-driven
         exporter_name = args.get('exporter')
