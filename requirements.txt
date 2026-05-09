@@ -1,9 +1,0 @@
-torch
-torchvision
-PyYAML
-toml
-tqdm
-tensorboard
-matplotlib
-sacrebleu
-datasets

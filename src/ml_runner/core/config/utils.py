@@ -1,4 +1,4 @@
-from simple_config.utils import merge_dicts as _merge_dicts
+from packages.simple_config.src.utils import merge_dicts as _merge_dicts
 
 def merge_dicts(base, override):
     """
