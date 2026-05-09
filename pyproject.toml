@@ -8,5 +8,6 @@ members = [
 
 [dependency-groups]
 dev = [
+    "pyfakefs>=6.2.0",
     "pytest>=9.0.3",
 ]
