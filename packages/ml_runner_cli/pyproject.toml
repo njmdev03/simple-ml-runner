@@ -11,4 +11,4 @@ dependencies = [
 ]
 
 [project.scripts]
-ml-runner = "ml_runner_cli:main"
+ml-runner = "ml_runner_cli.cli:main"
