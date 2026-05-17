@@ -1,9 +1,10 @@
 [tool.uv.workspace]
 members = [
-    "packages/simple_config",
-    "packages/simple_registries",
-    "packages/ml_runner_core",
-    "packages/ml_runner_cli",
+    # "packages/simple_config",
+    # "packages/simple_registries",
+    # "packages/ml_runner_core",
+    # "packages/ml_runner_cli",
+    "packages/*"
 ]
 
 [dependency-groups]
@@ -11,3 +12,7 @@ dev = [
     "pyfakefs>=6.2.0",
     "pytest>=9.0.3",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["packages"]
+addopts = "-ra"

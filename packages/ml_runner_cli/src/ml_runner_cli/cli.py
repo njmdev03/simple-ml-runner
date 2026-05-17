@@ -1,4 +1,5 @@
 import argparse
+import simple_config
 
 
 def main():
@@ -13,6 +14,7 @@ def main():
     args = parser.parse_args()
 
     if args.op == "run":
+        simple_config
         print("Run")
 
     elif args.op == "batch":
