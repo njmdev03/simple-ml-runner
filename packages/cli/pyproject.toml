@@ -9,3 +9,6 @@ requires-python = ">=3.13"
 dependencies = [
     "argparse>=1.4.0",
 ]
+
+[project.scripts]
+ml-runner = "cli:main"

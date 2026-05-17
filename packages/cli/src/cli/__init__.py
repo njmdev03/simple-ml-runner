@@ -1,2 +1,1 @@
-def hello() -> str:
-    return "Hello from cli!"
+from cli.cli import main
