@@ -1,9 +1,9 @@
 [tool.uv.workspace]
 members = [
-    "packages/simple-config",
-    "packages/simple-registries",
-    "packages/core",
-    "packages/cli",
+    "packages/simple_config",
+    "packages/simple_registries",
+    "packages/ml_runner_core",
+    "packages/ml_runner_cli",
 ]
 
 [dependency-groups]
