@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ml_runner_cli"
+name = "ml-runner-cli"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
