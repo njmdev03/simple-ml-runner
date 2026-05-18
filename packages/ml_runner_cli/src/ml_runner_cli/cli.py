@@ -1,10 +1,23 @@
 import argparse
-import simple_config
+from dataclasses import dataclass
 
+from simple_config import ConfigBuilder, Variant
+from simple_registries import Registry
+
+
+def get_schema(model_registry: Registry):
+    @dataclass
+    class ExperimentSchema:
+        name: str
+
+    @dataclass
+    class Schema:
+        experiment: ExperimentSchema
+        model: Variant = Variant({key: model_registry.get(key) for key in model_registry.keys()})
+
+    return Schema
 
 def main():
-    pass
-
     parser = argparse.ArgumentParser()
 
     parser.add_argument("op", type=str, default="run", choices=["run", "batch", "export"])
@@ -13,8 +26,11 @@ def main():
 
     args = parser.parse_args()
 
+
+
+    conf_builder = ConfigBuilder(get_schema())
+
     if args.op == "run":
-        simple_config
         print("Run")
 
     elif args.op == "batch":
