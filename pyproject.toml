@@ -4,7 +4,11 @@ members = [
     # "packages/simple_registries",
     # "packages/ml_runner_core",
     # "packages/ml_runner_cli",
-    "packages/*"
+    "packages/*",
+    "packages/extensions/*"
+]
+exclude = [
+    "packages/extensions"
 ]
 
 [dependency-groups]
