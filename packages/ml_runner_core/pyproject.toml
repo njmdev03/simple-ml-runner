@@ -3,12 +3,17 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ml_runner_core"
+name = "ml-runner-core"
 version = "0.1.0"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = ["torch"]
 
-[project.optional-dependencies]
+[tool.uv.sources]
 torch = [
-    "torch>=2.11.0",
+    { index = "pytorch-cu130", marker = "sys_platform == 'win32'"},
 ]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
