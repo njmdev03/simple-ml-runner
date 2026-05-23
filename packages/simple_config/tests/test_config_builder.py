@@ -229,9 +229,11 @@ def test_variant_missing_selection_with_default():
 
 def test_variant_multiple_selection():
     @dataclass
-    class A: val: int
+    class A:
+        val: int
     @dataclass
-    class B: val: int
+    class B:
+        val: int
 
     @dataclass
     class Schema:

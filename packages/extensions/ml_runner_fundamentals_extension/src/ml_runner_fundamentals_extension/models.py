@@ -1,8 +1,23 @@
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import List
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from ml_runner_core.extensions import ExtensionInterface
 
+
+class Activations(Enum):
+    ReLU = nn.ReLU
+
+@dataclass(frozen=True)
+class MLPConfig:
+    input_dim: int
+    output_dim: int
+    hidden_dims: List[int] = field(default_factory=list)
+    activation: str = "Relu"
+    dropout: float = 0.0
 
 class MLP(nn.Module):
     """
@@ -46,3 +61,12 @@ class MLP(nn.Module):
 
     def forward(self, x):
         return self.model(x)
+
+def mlp_builder(config: MLPConfig):
+    return MLP(
+        config.input_dim,
+        config.hidden_dims,
+        config.output_dim
+        )
+
+mlp_ext = ExtensionInterface("MLP", MLPConfig, mlp_builder)

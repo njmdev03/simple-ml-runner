@@ -9,4 +9,4 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.entry-points."ml_runner.models"]
-MLP = "ml_runner_fundamentals_extension.models:MLP"
+MLP = "ml_runner_fundamentals_extension.models:mlp_ext"
